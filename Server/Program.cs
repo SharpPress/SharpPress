@@ -156,6 +156,7 @@ namespace SharpPress
             var serviceProvider = app.Services;
 
             app.UseForwardedHeaders();
+            app.UseMiddleware<UserControlMiddleware>();
             app.UseMiddleware<SlugRoutingMiddleware>();
             app.UseRouting();
 

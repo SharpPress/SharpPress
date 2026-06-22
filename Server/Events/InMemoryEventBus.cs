@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
+﻿using System.Collections.Concurrent;
 
 namespace SharpPress.Services
 {
@@ -42,11 +37,11 @@ namespace SharpPress.Services
             var eventType = typeof(T);
             if (!_handlers.TryGetValue(eventType, out var handlers))
             {
-                _logger.Log($"📤 EventBus: No handlers registered for event '{eventType.Name}'.");
+                //_logger.Log($"📤 EventBus: No handlers registered for event '{eventType.Name}'.");
                 return;
             }
 
-            _logger.Log($"📤 EventBus: Publishing event '{eventType.Name}' (ID: {eventData.Id}).");
+            //_logger.Log($"📤 EventBus: Publishing event '{eventType.Name}' (ID: {eventData.Id}).");
 
             List<IEventHandler<T>> typedHandlers;
             lock (handlers)
