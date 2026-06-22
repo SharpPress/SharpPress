@@ -8,7 +8,7 @@ namespace SharpPress.Pages
         public async Task<IActionResult> OnGet()
         {
             HttpContext.Response.Cookies.Delete("X-Access-Token");
-            return Redirect("/panel");
+            return RedirectToPage("/Login");
         }
     }
 }

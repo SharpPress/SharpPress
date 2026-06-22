@@ -82,7 +82,7 @@ namespace SharpPress.Pages
             await _configManager.SaveConfig();
             TempData["SuccessMessage"] = "Settings updated successfully.";
 
-            return RedirectToPage("/Settings", new { tab = activeTab });
+            return RedirectToPage("/Admin/Settings", new { tab = activeTab });
         }
 
         public class SettingsInput

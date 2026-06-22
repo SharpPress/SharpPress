@@ -129,7 +129,7 @@ namespace SharpPress.Models
     [Flags]
     public enum UserRole
     {
-        Banned = 1 << 3,
+        Banned = 0,
         User = 1 << 0,
         Moderator = 1 << 1,
         Support = 1 << 2,

@@ -47,7 +47,7 @@ namespace SharpPress.Pages
             if (id > 0)
             {
                 var post = await _postService.GetPostByIdAsync(id);
-                if (post == null) return RedirectToPage("/Posts");
+                if (post == null) return RedirectToPage("/Admin/Posts");
 
                 Post = post;
                 IsNew = false;
@@ -101,7 +101,7 @@ namespace SharpPress.Pages
             else
                 await _postService.SetPostTagsAsync(Post.Id, new List<int>());
 
-            return RedirectToPage("/Posts");
+            return RedirectToPage("/Admin/Posts");
         }
     }
 }

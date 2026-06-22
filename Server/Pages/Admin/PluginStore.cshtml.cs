@@ -27,10 +27,7 @@ namespace SharpPress.Pages
             {
                 var client = _httpClientFactory.CreateClient();
                 var json = await client.GetStringAsync(PluginsJsonUrl);
-                var manifest = JsonSerializer.Deserialize<PluginsManifest>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var manifest = JsonSerializer.Deserialize<PluginsManifest>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 Plugins = manifest?.Plugins ?? new();
             }
@@ -46,10 +43,7 @@ namespace SharpPress.Pages
             try
             {
                 var json = await client.GetStringAsync(PluginsJsonUrl);
-                var manifest = JsonSerializer.Deserialize<PluginsManifest>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var manifest = JsonSerializer.Deserialize<PluginsManifest>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 Plugins = manifest?.Plugins ?? new();
             }
             catch
@@ -68,8 +62,7 @@ namespace SharpPress.Pages
             var fileName = Path.GetFileName(plugin.DownloadUrl);
             var filePath = Path.Combine("plugins", fileName);
 
-            var existingKey = pluginManager._pluginToAssemblyPath
-                .FirstOrDefault(p => p.Value == filePath).Key;
+            var existingKey = pluginManager._pluginToAssemblyPath.FirstOrDefault(p => p.Value == filePath).Key;
 
             if (System.IO.File.Exists(filePath) && !string.IsNullOrWhiteSpace(existingKey))
             {
@@ -89,7 +82,7 @@ namespace SharpPress.Pages
             }
 
             await pluginManager.LoadPluginFromFileAsync(filePath);
-            return RedirectToPage("/Plugins");
+            return RedirectToPage("/Admin/Plugins");
         }
 
         public class PluginsManifest
