@@ -1,0 +1,106 @@
+@page "/admin/categories"
+@model SharpPress.Pages.CategoriesModel
+@inject SharpPress.Services.UserService _userService
+
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Categories";
+}
+
+<style>
+    .categories-layout { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; }
+    .create-panel { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1.5rem; align-self: start; }
+    .tree-panel { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1.5rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-input, .form-select, .form-textarea { width: 100%; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.6rem 0.9rem; color: var(--text-main); font-size: 0.88rem; outline: none; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); }
+    .btn-primary { background: var(--primary); color: white; padding: 0.6rem 1.2rem; border-radius: var(--radius-sm); border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; width: 100%; transition: 0.2s; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .category-item { padding: 0.7rem 1rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; transition: 0.15s; }
+    .category-item:hover { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.02); }
+    .category-name { font-weight: 600; color: var(--text-white); font-size: 0.92rem; }
+    .category-slug { font-size: 0.78rem; color: var(--text-muted); }
+    .category-desc { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+    .child-indent { margin-left: 1.5rem; border-left: 2px solid var(--primary); padding-left: 1rem; }
+    .btn-delete-sm { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer; transition: 0.15s; }
+    .btn-delete-sm:hover { background: rgba(239,68,68,0.2); }
+    .panel-title { font-size: 1.1rem; font-weight: 600; color: var(--text-white); margin-bottom: 1rem; }
+</style>
+
+<div class="categories-layout">
+    <div class="create-panel">
+        <div class="panel-title">New Category</div>
+        <form method="post" asp-page-handler="Create">
+            <div class="form-group">
+                <label class="form-label">Name</label>
+                <input class="form-input" asp-for="NewCategory.Name" placeholder="Category name" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Slug</label>
+                <input class="form-input" asp-for="NewCategory.Slug" placeholder="auto-generated" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" asp-for="NewCategory.Description" rows="2" placeholder="Optional description"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Parent Category</label>
+                <select class="form-select" name="NewCategory.ParentId">
+                    <option value="0">None (Root)</option>
+                    @foreach (var cat in Model.Categories.Where(c => c.ParentId == 0))
+                    {
+                        var selectedAttr = Model.NewCategory.ParentId == cat.Id ? " selected" : "";
+                        <!option value="@cat.Id"@Html.Raw(selectedAttr)>@cat.Name</!option>
+                    }
+                </select>
+            </div>
+            <button type="submit" class="btn-primary">Create Category</button>
+        </form>
+    </div>
+
+    <div class="tree-panel">
+        <div class="panel-title">Categories (@Model.Categories.Count)</div>
+        @if (Model.CategoryTree.Any())
+        {
+            foreach (var node in Model.CategoryTree)
+            {
+                @Html.Raw(RenderCategoryNode(node, 0))
+            }
+        }
+        else
+        {
+            <p style="color: var(--text-muted); text-align: center; padding: 2rem;">No categories yet.</p>
+        }
+    </div>
+</div>
+
+@{
+    string RenderCategoryNode(CategoryNode node, int depth)
+    {
+        var indent = depth > 0 ? "child-indent" : "";
+        var desc = !string.IsNullOrEmpty(node.Category.Description) ? $"<div class=\"category-desc\">{node.Category.Description}</div>" : "";
+        var children = "";
+
+        if (node.Children.Any())
+        {
+            foreach (var child in node.Children)
+            {
+                children += RenderCategoryNode(child, depth + 1);
+            }
+        }
+
+        return $@"
+        <div class=""category-item {indent}"">
+            <div>
+                <div class=""category-name"">{node.Category.Name}</div>
+                <div class=""category-slug"">/{node.Category.Slug}</div>
+                {desc}
+            </div>
+            <form method=""post"" asp-page-handler=""Delete"" asp-route-id=""{node.Category.Id}"" style=""display:inline;"" onsubmit=""return confirm('Delete this category?');"">
+                <button type=""submit"" class=""btn-delete-sm"">Delete</button>
+            </form>
+        </div>
+        {children}";
+    }
+}

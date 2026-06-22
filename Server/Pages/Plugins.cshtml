@@ -253,12 +253,72 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
+
+    .btn-upload-plugin,
+    .btn-install-store {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: var(--radius-md);
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        border: none;
+        white-space: nowrap;
+    }
+
+    .btn-upload-plugin {
+        background: linear-gradient(135deg, var(--primary), #6366f1);
+        color: white;
+        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+    }
+
+        .btn-upload-plugin:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35);
+        }
+
+    .btn-install-store {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+        color: var(--text-white);
+        border: 1px solid var(--border-subtle);
+    }
+
+        .btn-install-store:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
 </style>
 
 <div class="plugins-header">
     <div>
         <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">Plugin Management</h1>
         <p style="color: var(--text-muted); font-size: 0.95rem;">Manage and control your installed plugins</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <label class="btn-upload-plugin" for="pluginFileInput">
+            <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            Upload Plugin
+        </label>
+        @Html.AntiForgeryToken()
+        <input type="file" id="pluginFileInput" name="pluginFile" accept=".dll" hidden onchange="handlePluginUpload(this.files)" />
+
+        <a href="/admin/plugins/store" class="btn-install-store">
+            <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
+                <circle cx="9" cy="21" r="1" />
+                <circle cx="20" cy="21" r="1" />
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+            Browse Store
+        </a>
     </div>
 </div>
 
@@ -317,7 +377,11 @@
                             <form method="post" asp-page-handler="Disable" style="flex: 1;">
                                 <input name="name" value="@p.Value.Name" hidden />
                                 <button class="btn-plugin btn-disable" type="submit">
-                                    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                                    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="15" y1="9" x2="9" y2="15" />
+                                        <line x1="9" y1="9" x2="15" y2="15" />
+                                    </svg>
                                     Disable
                                 </button>
                             </form>
@@ -327,7 +391,9 @@
                             <form method="post" asp-page-handler="Enable" style="flex: 1;">
                                 <input name="name" value="@p.Value.Name" hidden />
                                 <button class="btn-plugin btn-enable" type="submit">
-                                    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;"><polyline points="20 6 9 17 4 12" /></svg>
+                                    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;">
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
                                     Enable
                                 </button>
                             </form>
@@ -337,7 +403,10 @@
 
                 <div class="plugin-meta">
                     <div class="meta-item">
-                        <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                        <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5;">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
                         Author
                     </div>
                     <div class="meta-item" title="@p.Value.Author">
@@ -354,7 +423,70 @@ else
         <div class="empty-state">
             <div class="empty-state-icon">📦</div>
             <div class="empty-state-title">No Plugins Installed</div>
-            <div class="empty-state-text">Place your plugin DLL files in the plugins directory to get started</div>
+            <div class="empty-state-text">Place your plugin DLL files in the plugins directory or install one from store to get started.</div>
         </div>
     </div>
 }
+
+@Html.AntiForgeryToken()
+<script>
+    function handlePluginUpload(files) {
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+
+        if (!file.name.toLowerCase().endsWith('.dll')) {
+            alert('Please select a valid plugin DLL file (.dll only)');
+            return;
+        }
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        if (!token) {
+            alert('Security token not found. Please refresh the page.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('__RequestVerificationToken', token);
+        formData.append('pluginFile', file);
+
+        const uploadLabel = document.querySelector('.btn-upload-plugin');
+        const originalText = uploadLabel.innerHTML;
+        uploadLabel.innerHTML = '<svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="32" /></svg> Uploading...';
+        uploadLabel.style.pointerEvents = 'none';
+        uploadLabel.style.opacity = '0.7';
+
+        fetch('?handler=Upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Plugin uploaded successfully!');
+                location.reload();
+            } else {
+                return response.text().then(text => {
+                    throw new Error(text || 'Upload failed');
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+            alert('Failed to upload plugin: ' + error.message);
+
+            uploadLabel.innerHTML = originalText;
+            uploadLabel.style.pointerEvents = '';
+            uploadLabel.style.opacity = '';
+
+            document.getElementById('pluginFileInput').value = '';
+        });
+    }
+
+    const style = document.createElement('style');
+    style.textContent = `
+    @@keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }`;
+    document.head.appendChild(style);
+</script>

@@ -25,6 +25,28 @@ namespace SharpPress.Pages
             return Page();
         }
 
+        public async Task<IActionResult> OnPostUpload(IFormFile pluginFile)
+        {
+            if (pluginFile != null && pluginFile.FileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            {
+                var filePath = Path.Combine("plugins", pluginFile.FileName);
+                var pluginName = pluginManager._pluginToAssemblyPath.Where(p => p.Value == filePath).FirstOrDefault().Key;
+
+                if (System.IO.File.Exists(filePath) && !string.IsNullOrWhiteSpace(pluginName))
+                {
+                    await pluginManager.UnloadPluginAsync(pluginName);
+                    System.IO.File.Delete(filePath);
+                }
+
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await pluginFile.CopyToAsync(stream);
+
+                await pluginManager.LoadPluginFromFileAsync(filePath);
+            }
+
+            return Page();
+        }
+
         public async Task<IActionResult> OnPostEnableAsync(string name)
         {
             if (await pluginManager.EnablePluginAsync(name))

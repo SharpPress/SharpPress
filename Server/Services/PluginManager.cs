@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Primitives;
 using SharpPress.Events;
 using SharpPress.Plugins;
 using System.Collections.Concurrent;
@@ -17,6 +19,8 @@ namespace SharpPress.Services
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAdminMenuService _adminMenuService;
         private readonly IActionDescriptorCollectionProvider _actionDescriptorProvider;
+        private readonly PluginActionDescriptorChangeProvider _changeProvider;
+        private readonly PluginStateService _pluginStateService;
 
         private readonly HashSet<string> _loadedAssemblyPaths = new();
         private readonly ConcurrentDictionary<string, IPlugin> _loadedPlugins = new();
@@ -26,8 +30,9 @@ namespace SharpPress.Services
         private readonly ConcurrentDictionary<string, bool> _pluginEnabledState = new();
         private readonly ConcurrentDictionary<string, string> _legacyRoutesToPluginMap = new();
         private readonly ConcurrentDictionary<string, Assembly> _pluginAssemblies = new();
-        private readonly ConcurrentDictionary<string, string> _pluginToAssemblyPath = new();
         private readonly ConcurrentDictionary<Type, string> _typeToPluginMap = new();
+
+        public readonly ConcurrentDictionary<string, string> _pluginToAssemblyPath = new();
 
         private ApplicationPartManager? _partManager;
         private IWebHostEnvironment? _env;
@@ -38,7 +43,9 @@ namespace SharpPress.Services
             IEventBus eventBus,
             IServiceProvider serviceProvider,
             IServiceScopeFactory scopeFactory,
-            IAdminMenuService adminMenuService)
+            IAdminMenuService adminMenuService,
+            PluginActionDescriptorChangeProvider changeProvider,
+            PluginStateService pluginStateService)
         {
             _logger = logger;
             _eventBus = eventBus;
@@ -46,6 +53,8 @@ namespace SharpPress.Services
             _scopeFactory = scopeFactory;
             _adminMenuService = adminMenuService;
             _actionDescriptorProvider = serviceProvider.GetRequiredService<IActionDescriptorCollectionProvider>();
+            _changeProvider = changeProvider;
+            _pluginStateService = pluginStateService;
         }
 
         public void Initialize(
@@ -109,12 +118,6 @@ namespace SharpPress.Services
             {
                 dllPath = Path.GetFullPath(dllPath);
 
-                if (_loadedAssemblyPaths.Contains(dllPath))
-                {
-                    _logger.LogError($"Plugin already loaded: {dllPath}");
-                    return;
-                }
-
                 if (!File.Exists(dllPath))
                 {
                     _logger.LogError($"Plugin not found: {dllPath}");
@@ -129,31 +132,29 @@ namespace SharpPress.Services
                 _loadContexts[dllPath] = loadContext;
                 _assemblies[dllPath] = assembly;
 
-                RegisterApplicationPart(assembly);
-                InvalidateActionDescriptorCache();
-
-                var pluginTypes = assembly.GetTypes()
-                    .Where(t =>
-                        typeof(IPlugin).IsAssignableFrom(t) &&
-                        !t.IsAbstract &&
-                        !t.IsInterface);
-
+                var pluginTypes = assembly.GetTypes().Where(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsAbstract && !t.IsInterface);
                 foreach (var type in pluginTypes)
                 {
                     if (Activator.CreateInstance(type) is not IPlugin plugin)
                         continue;
 
                     foreach (var assemblyType in assembly.GetTypes())
-                    {
                         _typeToPluginMap[assemblyType] = plugin.Name;
-                    }
-
-                    await plugin.OnLoadAsync(new PluginContext(_logger, _scopeFactory, _serviceProvider, _adminMenuService, plugin.Name));
 
                     _loadedPlugins[plugin.Name] = plugin;
-                    _pluginEnabledState[plugin.Name] = true;
                     _pluginToAssemblyPath[plugin.Name] = dllPath;
                     _pluginAssemblies[plugin.Name] = assembly;
+
+                    var savedState = _pluginStateService.IsEnabled(plugin.Name);
+                    _pluginEnabledState[plugin.Name] = savedState;
+
+                    if (savedState)
+                    {
+                        RegisterApplicationPart(assembly);
+                        _changeProvider.NotifyChange();
+                        InvalidateActionDescriptorCache();
+                        await plugin.OnLoadAsync(new PluginContext(_logger, _scopeFactory, _serviceProvider, _adminMenuService, plugin.Name));
+                    }
 
                     _logger.Log($"✅ Plugin initialized: {plugin.Name}");
                     await _eventBus.PublishAsync(new PluginLoadedEvent(plugin));
@@ -227,6 +228,52 @@ namespace SharpPress.Services
             await LoadPluginsAsync();
         }
 
+        public async Task UnloadPluginAsync(string pluginName)
+        {
+            if (!_loadedPlugins.TryGetValue(pluginName, out var plugin))
+                return;
+
+            try
+            {
+                await plugin.OnUnloadAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Plugin unload error: {ex}");
+            }
+
+            _loadedPlugins.TryRemove(pluginName, out _);
+            _pluginEnabledState.TryRemove(pluginName, out _);
+
+            foreach (var kvp in _typeToPluginMap.Where(x => x.Value == pluginName).ToList())
+                _typeToPluginMap.TryRemove(kvp.Key, out _);
+
+            var pluginMenuItems = _adminMenuService.GetItems()
+                .Where(x => x.ResponsiblePlugin == pluginName)
+                .ToList();
+            foreach (var item in pluginMenuItems)
+                _adminMenuService.UnRegister(item);
+
+            if (_pluginAssemblies.TryRemove(pluginName, out var assembly))
+                RemoveApplicationPart(assembly);
+
+            if (_pluginToAssemblyPath.TryRemove(pluginName, out var dllPath))
+            {
+                _assemblies.TryRemove(dllPath, out _);
+                _loadedAssemblyPaths.Remove(dllPath);
+
+                if (_loadContexts.TryRemove(dllPath, out var context))
+                    context.Unload();
+            }
+
+            _changeProvider.NotifyChange();
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            _logger.Log($"🧹 Plugin unloaded: {pluginName}");
+        }
+
         public async Task UnloadAllPluginsAsync()
         {
             foreach (var plugin in _loadedPlugins.Values)
@@ -283,9 +330,11 @@ namespace SharpPress.Services
             if (_pluginAssemblies.TryGetValue(pluginName, out var assembly))
             {
                 RegisterApplicationPart(assembly);
+                _changeProvider.NotifyChange();
             }
 
             _pluginEnabledState[pluginName] = true;
+            _pluginStateService.SetEnabled(pluginName, true);
             var plugin = _loadedPlugins[pluginName];
 
             try
@@ -316,6 +365,7 @@ namespace SharpPress.Services
                 return true;
             }
 
+
             var plugin = _loadedPlugins[pluginName];
 
             try
@@ -328,6 +378,7 @@ namespace SharpPress.Services
             }
 
             _pluginEnabledState[pluginName] = false;
+            _pluginStateService.SetEnabled(pluginName, false);
 
             var pluginMenuItems = _adminMenuService.GetItems().Where(item => item.ResponsiblePlugin == pluginName).ToList();
             if (pluginMenuItems.Count > 0)
@@ -339,6 +390,7 @@ namespace SharpPress.Services
                 if (_pluginAssemblies.TryGetValue(pluginName, out var assembly))
                 {
                     RemoveApplicationPart(assembly);
+                    _changeProvider.NotifyChange();
                 }
 
                 if (_loadContexts.TryGetValue(dllPath, out var context))
@@ -400,7 +452,8 @@ namespace SharpPress.Services
         {
             if (_actionDescriptorProvider is ActionDescriptorCollectionProvider provider)
             {
-                var field = typeof(ActionDescriptorCollectionProvider).GetField("_actionDescriptors", BindingFlags.NonPublic | BindingFlags.Instance);
+                var field = typeof(ActionDescriptorCollectionProvider)
+                    .GetField("_actionDescriptors", BindingFlags.NonPublic | BindingFlags.Instance);
                 field?.SetValue(provider, null);
             }
         }
@@ -467,5 +520,20 @@ namespace SharpPress.Services
         public string IconSvg { get; set; } = "";
         public string Url { get; set; } = "";
         public int Order { get; set; }
+    }
+
+    public class PluginActionDescriptorChangeProvider : IActionDescriptorChangeProvider
+    {
+        private CancellationTokenSource _cts = new();
+
+        public IChangeToken GetChangeToken()
+            => new CancellationChangeToken(_cts.Token);
+
+        public void NotifyChange()
+        {
+            var old = Interlocked.Exchange(ref _cts, new CancellationTokenSource());
+            old.Cancel();
+            old.Dispose();
+        }
     }
 }

@@ -102,7 +102,7 @@ namespace SharpPress.Models
         public bool IsAtLeastUser() => HasAnyRole(UserRole.User | UserRole.Moderator | UserRole.Support | UserRole.Admin);
         public bool HasRole(UserRole role)
         {
-            if (Roles == UserRole.Banned)
+            if ((Roles & UserRole.Banned) != 0)
                 return false;
 
             if ((Roles & UserRole.Admin) != 0)
@@ -115,7 +115,7 @@ namespace SharpPress.Models
                 return (Roles & UserRole.Moderator) != 0 || (Roles & UserRole.Support) != 0 || (Roles & UserRole.Admin) != 0;
 
             if (role == UserRole.User)
-                return Roles != UserRole.Banned;
+                return (Roles & UserRole.User) != 0;
 
             return (Roles & role) != 0;
         }
@@ -129,7 +129,7 @@ namespace SharpPress.Models
     [Flags]
     public enum UserRole
     {
-        Banned = 0,
+        Banned = 1 << 3,
         User = 1 << 0,
         Moderator = 1 << 1,
         Support = 1 << 2,
@@ -247,6 +247,7 @@ namespace SharpPress.Models
         public string ConfigFile { get; set; } = "config.json";
         public string UsersFile { get; set; } = "users.json";
         public string VideosFolder { get; set; } = "videos";
+        public string MediaFolder { get; set; } = "media";
         public string LogsFolder { get; set; } = "logs";
     }
 

@@ -1,0 +1,148 @@
+@page "/admin/posts"
+@model SharpPress.Pages.PostsModel
+@inject SharpPress.Services.UserService _userService
+
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Posts";
+}
+
+<style>
+    .posts-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-create {
+        background: var(--primary);
+        color: white;
+        padding: 0.6rem 1.2rem;
+        border-radius: var(--radius-sm);
+        border: none;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.2s;
+    }
+
+    .btn-create:hover {
+        background: var(--primary-hover);
+        box-shadow: var(--shadow-glow);
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.3rem 0.65rem;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-draft { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .status-published { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .status-scheduled { background: rgba(79, 70, 229, 0.15); color: #818cf8; }
+    .status-archived { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+
+    .type-badge {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        background: rgba(255,255,255,0.06);
+        color: var(--text-muted);
+    }
+
+    .btn-delete {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        padding: 0.35rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.78rem;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .btn-delete:hover { background: rgba(239, 68, 68, 0.2); }
+
+    .btn-edit {
+        background: rgba(79, 70, 229, 0.1);
+        color: #818cf8;
+        border: 1px solid rgba(79, 70, 229, 0.2);
+        padding: 0.35rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.78rem;
+        text-decoration: none;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .btn-edit:hover { background: rgba(79, 70, 229, 0.2); }
+</style>
+
+<div class="posts-header">
+    <h2 style="color: var(--text-white); font-size: 1.4rem; font-weight: 600;">Posts</h2>
+    <a href="/admin/posts/0/edit" class="btn-create">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Post
+    </a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Author</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Posts.Any())
+            {
+                foreach (var post in Model.Posts.OrderByDescending(p => p.UpdatedAt))
+                {
+                    var statusClass = post.Status switch
+                    {
+                        PostStatus.Draft => "status-draft",
+                        PostStatus.Published => "status-published",
+                        PostStatus.Scheduled => "status-scheduled",
+                        _ => "status-archived"
+                    };
+
+                    <tr>
+                        <td style="font-weight: 600; color: var(--text-white);">@post.Title</td>
+                        <td><span class="type-badge">@post.Type</span></td>
+                        <td><span class="status-badge @statusClass">@post.Status</span></td>
+                        <td style="color: var(--text-muted);">@post.AuthorUsername</td>
+                        <td style="color: var(--text-muted); font-size: 0.82rem;">@post.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td style="display: flex; gap: 6px;">
+                            <a href="/admin/posts/@post.Id/edit" class="btn-edit">Edit</a>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@post.Id" style="display:inline;" onsubmit="return confirm('Delete this post?');">
+                                <button type="submit" class="btn-delete">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No posts yet. Create your first post!</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

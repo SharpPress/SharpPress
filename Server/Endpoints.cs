@@ -387,6 +387,43 @@ namespace SharpPress
                 return Results.File(filePath, contentType, enableRangeProcessing: true);
             });
 
+            app.MapGet("/media/{filename}", (string filename, [FromServices] MediaService mediaService) =>
+            {
+                filename = Path.GetFileName(filename);
+                if (string.IsNullOrEmpty(filename)) return Results.BadRequest("Invalid filename.");
+
+                string filePath = mediaService.GetMediaFilePath(filename);
+                if (filePath == null || !File.Exists(filePath)) return Results.NotFound("File not found");
+
+                string contentType = mediaService.GetContentType(filePath);
+                bool isVideo = contentType.StartsWith("video/");
+                return Results.File(filePath, contentType, enableRangeProcessing: isVideo);
+            });
+
+            app.MapGet("/media/thumbnails/{filename}", (string filename, [FromServices] MediaService mediaService) =>
+            {
+                filename = Path.GetFileName(filename);
+                if (string.IsNullOrEmpty(filename)) return Results.BadRequest("Invalid filename.");
+
+                string filePath = mediaService.GetThumbnailFilePath(filename);
+                if (filePath == null || !File.Exists(filePath)) return Results.NotFound("Thumbnail not found");
+
+                return Results.File(filePath, "image/jpeg");
+            });
+
+            app.MapGet("/api/posts", async ([FromServices] PostService postService) =>
+            {
+                var posts = await postService.GetPublishedPostsAsync();
+                return Results.Ok(posts.Select(p => new { p.Id, p.Title, p.Slug, p.Excerpt, p.AuthorUsername, p.PublishedAt, p.Type }).ToList());
+            });
+
+            app.MapGet("/api/posts/{slug}", async (string slug, [FromServices] PostService postService) =>
+            {
+                var post = await postService.GetPostBySlugAsync(slug);
+                if (post == null || post.Status != PostStatus.Published) return Results.NotFound();
+                return Results.Ok(new { post.Id, post.Title, post.Slug, post.Content, post.Excerpt, post.AuthorUsername, post.PublishedAt, post.Type });
+            });
+
             app.MapGet("/api/stats", async (HttpRequest request, HttpResponse response, UserService userService, [FromServices] AuthenticationService authService) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
@@ -628,27 +665,6 @@ namespace SharpPress
                     if (await ServeFile(context, indexPath, requestPath + "/index.html"))
                     {
                         return;
-                    }
-                }
-
-                if (!Path.HasExtension(requestPath) && !requestPath.StartsWith("api/"))
-                {
-                    var spaIndexPath = Path.Combine(rootPath, "index.php");
-                    if (File.Exists(spaIndexPath))
-                    {
-                        if (await ServeFile(context, spaIndexPath, "index.php"))
-                        {
-                            return;
-                        }
-                    }
-
-                    spaIndexPath = Path.Combine(rootPath, "index.html");
-                    if (File.Exists(spaIndexPath))
-                    {
-                        if (await ServeFile(context, spaIndexPath, "index.html"))
-                        {
-                            return;
-                        }
                     }
                 }
 

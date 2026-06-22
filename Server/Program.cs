@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.IdentityModel.Tokens;
 using SharpPress.Events;
@@ -58,7 +59,7 @@ namespace SharpPress
             builder.Services.AddControllersWithViews(options =>
             {
                 options.Filters.Add<PluginEnabledFilter>();
-            }).AddRazorRuntimeCompilation();
+            });
 
             builder.Services.AddRazorPages();
             builder.Services.AddCors(options =>
@@ -87,6 +88,9 @@ namespace SharpPress
             builder.Services.AddSingleton(provider => new ServerSettings { httpPort = httpPort });
             builder.Services.AddSingleton<CacheService>();
             builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
+            builder.Services.AddSingleton<PluginStateService>();
+            builder.Services.AddSingleton<PluginActionDescriptorChangeProvider>();
+            builder.Services.AddSingleton<IActionDescriptorChangeProvider>(sp => sp.GetRequiredService<PluginActionDescriptorChangeProvider>());
             builder.Services.AddSingleton<Services.EventHandler>();
             builder.Services.AddSingleton(provider => new FeatherDatabase(loggerAdapter, provider.GetRequiredService<ConfigManager>().Config.MySQL_Config));
             builder.Services.AddSingleton<UserService>();
@@ -98,6 +102,9 @@ namespace SharpPress
             builder.Services.AddSingleton<PackageManager>();
             builder.Services.AddSingleton<VideoStreamingService>();
             builder.Services.AddSingleton<IAdminMenuService, AdminMenuService>();
+            builder.Services.AddSingleton<PostService>();
+            builder.Services.AddSingleton<TaxonomyService>();
+            builder.Services.AddSingleton<MediaService>();
 
             builder.Services.AddAuthentication(options =>
             {
@@ -149,7 +156,7 @@ namespace SharpPress
             var serviceProvider = app.Services;
 
             app.UseForwardedHeaders();
-            app.UseStaticFiles();
+            app.UseMiddleware<SlugRoutingMiddleware>();
             app.UseRouting();
 
             app.UseCors("DynamicPolicy");
@@ -177,17 +184,6 @@ namespace SharpPress
             }
 
             await pluginManager.LoadPluginsAsync();
-
-            var eventBus = serviceProvider.GetRequiredService<IEventBus>();
-            var eventHandler = serviceProvider.GetRequiredService<Services.EventHandler>();
-
-            eventBus.Subscribe<PluginLoadedEvent>(eventHandler);
-            eventBus.Subscribe<VideoUploadedEvent>(eventHandler);
-            eventBus.Subscribe<UserRegisteredEvent>(eventHandler);
-
-            app.UseMiddleware<UserControlMiddleware>();
-            app.UseMiddleware<PluginRouteMiddleware>();
-
             await Endpoints.RegisterServices(serviceProvider.GetRequiredService<ServerConfig>());
 
             app.MapControllers();
@@ -229,6 +225,20 @@ namespace SharpPress
             await database.CreateTable<User>();
             await database.CreateIndex<User>("Username");
             await database.CreateIndex<User>("UUID");
+            await database.CreateTable<Post>();
+            await database.CreateIndex<Post>("Slug");
+            await database.CreateTable<Category>();
+            await database.CreateIndex<Category>("Slug");
+            await database.CreateTable<Tag>();
+            await database.CreateIndex<Tag>("Slug");
+            await database.CreateTable<PostCategory>();
+            await database.CreateIndex<PostCategory>("PostId");
+            await database.CreateIndex<PostCategory>("CategoryId");
+            await database.CreateTable<PostTag>();
+            await database.CreateIndex<PostTag>("PostId");
+            await database.CreateIndex<PostTag>("TagId");
+            await database.CreateTable<MediaItem>();
+            await database.CreateIndex<MediaItem>("MediaType");
         }
 
         private static async Task ShutdownApplication(IServiceProvider serviceProvider, Logger logger)

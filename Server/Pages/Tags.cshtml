@@ -1,0 +1,68 @@
+@page "/admin/tags"
+@model SharpPress.Pages.TagsModel
+@inject SharpPress.Services.UserService _userService
+
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Tags";
+}
+
+<style>
+    .tags-layout { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; }
+    .create-panel { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1.5rem; align-self: start; }
+    .list-panel { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1.5rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-input { width: 100%; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.6rem 0.9rem; color: var(--text-main); font-size: 0.88rem; outline: none; }
+    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); }
+    .btn-primary { background: var(--primary); color: white; padding: 0.6rem 1.2rem; border-radius: var(--radius-sm); border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; width: 100%; transition: 0.2s; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .tag-item { display: inline-flex; align-items: center; gap: 8px; background: rgba(79,70,229,0.08); border: 1px solid rgba(79,70,229,0.15); border-radius: 20px; padding: 0.45rem 1rem; margin: 0.25rem; transition: 0.15s; }
+    .tag-item:hover { border-color: rgba(79,70,229,0.3); background: rgba(79,70,229,0.12); }
+    .tag-name { font-weight: 600; color: #a5b4fc; font-size: 0.88rem; }
+    .tag-slug { font-size: 0.75rem; color: var(--text-muted); }
+    .btn-delete-tag { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 0.85rem; padding: 0; opacity: 0.5; transition: 0.15s; }
+    .btn-delete-tag:hover { opacity: 1; }
+    .panel-title { font-size: 1.1rem; font-weight: 600; color: var(--text-white); margin-bottom: 1rem; }
+    .tags-wrap { display: flex; flex-wrap: wrap; }
+</style>
+
+<div class="tags-layout">
+    <div class="create-panel">
+        <div class="panel-title">New Tag</div>
+        <form method="post" asp-page-handler="Create">
+            <div class="form-group">
+                <label class="form-label">Name</label>
+                <input class="form-input" asp-for="NewTag.Name" placeholder="Tag name" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Slug</label>
+                <input class="form-input" asp-for="NewTag.Slug" placeholder="auto-generated" />
+            </div>
+            <button type="submit" class="btn-primary">Create Tag</button>
+        </form>
+    </div>
+
+    <div class="list-panel">
+        <div class="panel-title">Tags (@Model.Tags.Count)</div>
+        @if (Model.Tags.Any())
+        {
+            <div class="tags-wrap">
+                @foreach (var tag in Model.Tags)
+                {
+                    <div class="tag-item">
+                        <span class="tag-name">@tag.Name</span>
+                        <span class="tag-slug">/@tag.Slug</span>
+                        <form method="post" asp-page-handler="Delete" asp-route-id="@tag.Id" style="display:inline;" onsubmit="return confirm('Delete this tag?');">
+                            <button type="submit" class="btn-delete-tag" title="Delete">&times;</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p style="color: var(--text-muted); text-align: center; padding: 2rem;">No tags yet.</p>
+        }
+    </div>
+</div>

@@ -1,0 +1,322 @@
+﻿@page "/admin/plugins/store"
+@model SharpPress.Pages.PluginStoreModel
+@inject PluginManager pluginManager
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Plugin Store";
+}
+
+<style>
+    .store-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .store-header {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding: 3rem 2rem;
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(139, 92, 246, 0.05));
+        border-radius: var(--radius-xl);
+        border: 1px solid rgba(79, 70, 229, 0.2);
+    }
+
+    .store-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--text-white);
+        margin-bottom: 0.75rem;
+        letter-spacing: -1px;
+    }
+
+    .store-subtitle {
+        font-size: 1.15rem;
+        color: var(--text-muted);
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.6;
+    }
+
+    .store-stats {
+        display: flex;
+        justify-content: center;
+        gap: 2.5rem;
+        margin-top: 2rem;
+    }
+
+    .store-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .store-stat-number {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .store-stat-label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .plugins-showcase {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 2rem;
+    }
+
+    .plugin-store-card {
+        background: linear-gradient(135deg, var(--bg-card), rgba(255, 255, 255, 0.02));
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+
+        .plugin-store-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: var(--primary);
+            box-shadow: 0 20px 60px rgba(79, 70, 229, 0.2);
+        }
+
+    .card-banner {
+        height: 180px;
+        background: linear-gradient(135deg, var(--primary), var(--accent), #ec4899);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+        .card-banner::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.5;
+        }
+
+    .plugin-icon-large {
+        width: 96px;
+        height: 96px;
+        border-radius: var(--radius-lg);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 0.5rem;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+        position: relative;
+        z-index: 1;
+        object-fit: cover;
+    }
+
+    .card-content {
+        padding: 1.75rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .card-header {
+        margin-bottom: 1rem;
+    }
+
+    .card-plugin-name {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--text-white);
+        margin-bottom: 0.35rem;
+        letter-spacing: -0.3px;
+    }
+
+    .card-plugin-meta {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+
+    .meta-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.75rem;
+        background: rgba(79, 70, 229, 0.15);
+        border-radius: 50px;
+        color: var(--primary);
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+
+    .badge-new {
+        background: rgba(236, 72, 153, 0.15);
+        color: #ec4899;
+    }
+
+    .badge-popular {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+    }
+
+    .card-description {
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+        flex-grow: 1;
+    }
+
+    .card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-subtle);
+    }
+
+    .author-info {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+
+    .author-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+
+    .author-name {
+        font-size: 0.875rem;
+        color: var(--text-white);
+        font-weight: 500;
+    }
+
+    .btn-install {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, var(--success), #059669);
+        color: white;
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+        .btn-install:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.95rem;
+        margin-bottom: 2rem;
+        transition: color 0.3s ease;
+        font-weight: 500;
+    }
+
+        .back-link:hover {
+            color: var(--primary);
+        }
+</style>
+
+<div class="store-container">
+    <a href="/admin/plugins" class="back-link">
+        <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        Back to Plugins
+    </a>
+
+    <div class="store-header">
+        <h1 class="store-title">Plugin Store</h1>
+        <p class="store-subtitle">Discover and install amazing plugins to extend your SharpPress experience</p>
+        <div class="store-stats">
+            <div class="store-stat">
+                <div class="store-stat-number">@Model.Plugins.Count</div>
+                <div class="store-stat-label">Available</div>
+            </div>
+            <div class="store-stat">
+                <div class="store-stat-number">@pluginManager.GetLoadedPlugins().Count</div>
+                <div class="store-stat-label">Installed</div>
+            </div>
+            <div class="store-stat">
+                <div class="store-stat-number">Free</div>
+                <div class="store-stat-label">Pricing</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="plugins-showcase">
+        @foreach(var plugin in Model.Plugins)
+        {
+            var installedPlugins = pluginManager.GetLoadedPlugins().Keys.Where(name => name == plugin.Name).FirstOrDefault();
+            if (installedPlugins != null)
+            {
+                continue;
+            }
+
+            <div class="plugin-store-card">
+                <div class="card-banner">
+                    <img src="@plugin.Icon" alt="@plugin.Name" class="plugin-icon-large" />
+                </div>
+                <div class="card-content">
+                    <div class="card-header">
+                        <h3 class="card-plugin-name">@plugin.Name</h3>
+                        <div class="card-plugin-meta">
+                            <span class="meta-badge">@plugin.Version</span>
+                        </div>
+                    </div>
+                    <p class="card-description">@plugin.Description</p>
+                    <div class="card-footer">
+                        <div class="author-info">
+                            <div class="author-avatar">@plugin.Author[0].ToString().ToUpper()</div>
+                            <span class="author-name">@plugin.Author</span>
+                        </div>
+                        <form method="post" asp-page-handler="Install">
+                            <input name="id" value="@plugin.Id" hidden/>
+                            <button type="submit" class="btn-install">
+                                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                Install
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

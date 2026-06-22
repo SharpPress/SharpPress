@@ -1,15 +1,17 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using SharpPress.Events;
 
 namespace SharpPress.Services
 {
-    /// <summary>
-    /// Service responsible to handle notifications, reacting to various domain events.
-    /// </summary>
-    public class EventHandler : 
+    public class EventHandler :
         IEventHandler<UserRegisteredEvent>,
         IEventHandler<VideoUploadedEvent>,
-        IEventHandler<PluginLoadedEvent>
+        IEventHandler<PluginLoadedEvent>,
+        IEventHandler<PostCreatedEvent>,
+        IEventHandler<PostUpdatedEvent>,
+        IEventHandler<PostDeletedEvent>,
+        IEventHandler<MediaUploadedEvent>,
+        IEventHandler<MediaDeletedEvent>
     {
         private readonly Logger _logger;
 
@@ -22,7 +24,7 @@ namespace SharpPress.Services
         {
             await Task.Run(() =>
             {
-                _logger.Log($"🎉 Notification: New user '{eventData.User.Username}' (Email: {eventData.User.Email}) has registered! Welcome them.");
+                _logger.Log($"New user '{eventData.User.Username}' (Email: {eventData.User.Email}) has registered.");
             });
         }
 
@@ -30,13 +32,52 @@ namespace SharpPress.Services
         {
             await Task.Run(() =>
             {
-                _logger.Log($"🎬 Notification: Video '{eventData.FileName}' from URL '{eventData.SourceUrl}' has been uploaded and is ready for processing.");
+                _logger.Log($"Video '{eventData.FileName}' from URL '{eventData.SourceUrl}' uploaded.");
             });
         }
 
         public async Task HandleAsync(PluginLoadedEvent eventData)
         {
+        }
 
+        public async Task HandleAsync(PostCreatedEvent eventData)
+        {
+            await Task.Run(() =>
+            {
+                _logger.Log($"Post created: '{eventData.Post.Title}' (Status: {eventData.Post.Status})");
+            });
+        }
+
+        public async Task HandleAsync(PostUpdatedEvent eventData)
+        {
+            await Task.Run(() =>
+            {
+                _logger.Log($"Post updated: '{eventData.Post.Title}'");
+            });
+        }
+
+        public async Task HandleAsync(PostDeletedEvent eventData)
+        {
+            await Task.Run(() =>
+            {
+                _logger.Log($"Post deleted: '{eventData.Post.Title}'");
+            });
+        }
+
+        public async Task HandleAsync(MediaUploadedEvent eventData)
+        {
+            await Task.Run(() =>
+            {
+                _logger.Log($"Media uploaded: '{eventData.MediaItem.FileName}' ({eventData.MediaItem.MediaType})");
+            });
+        }
+
+        public async Task HandleAsync(MediaDeletedEvent eventData)
+        {
+            await Task.Run(() =>
+            {
+                _logger.Log($"Media deleted: '{eventData.FileName}' (ID: {eventData.MediaId})");
+            });
         }
     }
 }

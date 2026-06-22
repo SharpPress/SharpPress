@@ -1,0 +1,321 @@
+@page "/admin/posts/{id?}/edit"
+@model SharpPress.Pages.PostEditorModel
+@inject SharpPress.Services.UserService _userService
+
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = Model.IsNew ? "New Post" : "Edit Post";
+}
+
+<style>
+    .editor-form { max-width: 900px; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        background: var(--bg-input);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: 0.7rem 1rem;
+        color: var(--text-main);
+        font-size: 0.92rem;
+        transition: border-color 0.2s;
+        outline: none;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); }
+    .form-textarea { min-height: 120px; resize: vertical; font-family: inherit; }
+    .form-row { display: flex; gap: 1rem; }
+    .form-row > * { flex: 1; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .checkbox-item { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 0.4rem 0.7rem; font-size: 0.85rem; color: var(--text-main); cursor: pointer; transition: 0.15s; }
+    .checkbox-item:hover { border-color: var(--primary); }
+    .checkbox-item input[type="checkbox"] { accent-color: var(--primary); }
+    .btn-row { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+    .btn-primary { background: var(--primary); color: white; padding: 0.65rem 1.5rem; border-radius: var(--radius-sm); border: none; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .btn-primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-glow); }
+    .btn-secondary { background: rgba(255,255,255,0.06); color: var(--text-main); padding: 0.65rem 1.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 0.88rem; cursor: pointer; text-decoration: none; transition: 0.2s; }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+    .editor-toolbar {
+        display: flex;
+        gap: 2px;
+        padding: 0.5rem;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid var(--border-subtle);
+        border-bottom: none;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        flex-wrap: wrap;
+    }
+    .editor-toolbar button {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        padding: 0.35rem 0.6rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        font-weight: 600;
+        transition: 0.15s;
+    }
+    .editor-toolbar button:hover { background: rgba(255,255,255,0.08); color: var(--text-white); }
+    .editor-toolbar .separator { width: 1px; background: var(--border-subtle); margin: 0 4px; }
+
+    .editor-area {
+        border: 1px solid var(--border-subtle);
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        min-height: 350px;
+        background: var(--bg-input);
+        color: var(--text-main);
+        padding: 1rem;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        outline: none;
+        overflow-y: auto;
+    }
+    .editor-area:focus { border-color: var(--primary); }
+    .editor-area img { max-width: 100%; height: auto; }
+    .editor-area h1, .editor-area h2, .editor-area h3 { color: var(--text-white); margin: 0.5em 0 0.3em; }
+    .editor-area p { margin: 0.4em 0; }
+    .editor-area ul, .editor-area ol { padding-left: 1.5em; }
+    .editor-area blockquote { border-left: 3px solid var(--primary); padding-left: 1em; margin: 0.5em 0; color: var(--text-muted); }
+    .editor-area a { color: #818cf8; }
+
+    .media-picker-btn {
+        background: rgba(16, 185, 129, 0.1);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        padding: 0.35rem 0.65rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: 0.15s;
+    }
+    .media-picker-btn:hover { background: rgba(16, 185, 129, 0.2); }
+
+    .media-picker-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    .media-picker-overlay.active { display: flex; }
+    .media-picker-panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        width: 90%;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+        padding: 1.5rem;
+    }
+    .media-picker-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+    .media-picker-item {
+        border: 2px solid transparent;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        cursor: pointer;
+        transition: 0.15s;
+        background: rgba(255,255,255,0.03);
+    }
+    .media-picker-item:hover { border-color: var(--primary); }
+    .media-picker-item img { width: 100%; height: 80px; object-fit: cover; display: block; }
+    .media-picker-item .media-name { font-size: 0.7rem; color: var(--text-muted); padding: 4px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+</style>
+
+<div class="editor-form">
+    <h2 style="color: var(--text-white); font-size: 1.4rem; font-weight: 600; margin-bottom: 1.5rem;">@(Model.IsNew ? "New Post" : "Edit Post")</h2>
+
+    <form method="post" onsubmit="syncContent()">
+        <input type="hidden" asp-for="Post.Id" />
+
+        <div class="form-group">
+            <label class="form-label">Title</label>
+            <input class="form-input" asp-for="Post.Title" placeholder="Post title..." id="post-title" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Slug</label>
+            <input class="form-input" asp-for="Post.Slug" placeholder="auto-generated-from-title" id="post-slug" />
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Type</label>
+                <select class="form-select" name="Post.Type">
+                    @foreach (PostType pt in Enum.GetValues(typeof(PostType)))
+                    {
+                        var sel = Model.Post.Type == pt ? " selected" : "";
+                        <!option value="@((int)pt)"@Html.Raw(sel)>@pt</!option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select class="form-select" name="Post.Status" id="Post_Status">
+                    @foreach (PostStatus ps in Enum.GetValues(typeof(PostStatus)))
+                    {
+                        var sel = Model.Post.Status == ps ? " selected" : "";
+                        <!option value="@((int)ps)"@Html.Raw(sel)>@ps</!option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group" id="scheduled-group" style="display:none;">
+            <label class="form-label">Schedule Date</label>
+            <input class="form-input" name="Post.ScheduledAt" type="datetime-local" value="@(Model.Post.ScheduledAt?.ToString("yyyy-MM-ddTHH:mm"))" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Excerpt</label>
+            <textarea class="form-textarea" asp-for="Post.Excerpt" rows="3" placeholder="Brief summary..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Content</label>
+            <div class="editor-toolbar">
+                <button type="button" onclick="editorCmd('bold')" title="Bold"><b>B</b></button>
+                <button type="button" onclick="editorCmd('italic')" title="Italic"><i>I</i></button>
+                <button type="button" onclick="editorCmd('underline')" title="Underline"><u>U</u></button>
+                <span class="separator"></span>
+                <button type="button" onclick="editorCmd('formatBlock','H1')" title="Heading 1">H1</button>
+                <button type="button" onclick="editorCmd('formatBlock','H2')" title="Heading 2">H2</button>
+                <button type="button" onclick="editorCmd('formatBlock','H3')" title="Heading 3">H3</button>
+                <button type="button" onclick="editorCmd('formatBlock','P')" title="Paragraph">P</button>
+                <span class="separator"></span>
+                <button type="button" onclick="editorCmd('insertUnorderedList')" title="Bullet List">&#8226; List</button>
+                <button type="button" onclick="editorCmd('insertOrderedList')" title="Numbered List">1. List</button>
+                <button type="button" onclick="editorCmd('formatBlock','BLOCKQUOTE')" title="Quote">&#8220; Quote</button>
+                <span class="separator"></span>
+                <button type="button" onclick="insertLink()" title="Insert Link">&#128279; Link</button>
+                <button type="button" class="media-picker-btn" onclick="openMediaPicker()" title="Insert Media">&#128247; Media</button>
+            </div>
+            <div class="editor-area" id="editor-content" contenteditable="true">@Html.Raw(Model.Post.Content)</div>
+            <input type="hidden" asp-for="Post.Content" id="post-content-hidden" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Featured Image URL</label>
+            <input class="form-input" asp-for="Post.FeaturedImage" placeholder="/media/image.jpg" />
+        </div>
+
+        @if (Model.AllCategories.Any())
+        {
+            <div class="form-group">
+                <label class="form-label">Categories</label>
+                <div class="checkbox-group">
+                    @foreach (var cat in Model.AllCategories)
+                    {
+                        var checkedAttr = Model.SelectedCategoryIds.Contains(cat.Id) ? " checked" : "";
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="SelectedCategoryIds" value="@cat.Id"@Html.Raw(checkedAttr) />
+                            @cat.Name
+                        </label>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (Model.AllTags.Any())
+        {
+            <div class="form-group">
+                <label class="form-label">Tags</label>
+                <div class="checkbox-group">
+                    @foreach (var tag in Model.AllTags)
+                    {
+                        var checkedAttr = Model.SelectedTagIds.Contains(tag.Id) ? " checked" : "";
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="SelectedTagIds" value="@tag.Id"@Html.Raw(checkedAttr) />
+                            @tag.Name
+                        </label>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="btn-row">
+            <button type="submit" class="btn-primary">Save</button>
+            <a href="/admin/posts" class="btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<div class="media-picker-overlay" id="media-picker-overlay" onclick="closeMediaPicker(event)">
+    <div class="media-picker-panel" onclick="event.stopPropagation()">
+        <h3 style="color: var(--text-white); margin-bottom: 0.5rem;">Select Media</h3>
+        <div class="media-picker-grid">
+            @foreach (var media in Model.MediaItems.Where(m => m.MediaType == "image"))
+            {
+                <div class="media-picker-item" onclick="insertMedia('/media/@media.FilePath', '@media.AltText')">
+                    @if (!string.IsNullOrEmpty(media.ThumbnailPath))
+                    {
+                        <img src="/media/thumbnails/@media.ThumbnailPath" alt="@media.AltText" />
+                    }
+                    else
+                    {
+                        <img src="/media/@media.FilePath" alt="@media.AltText" />
+                    }
+                    <div class="media-name">@media.FileName</div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function editorCmd(cmd, value) {
+        document.execCommand(cmd, false, value || null);
+        document.getElementById('editor-content').focus();
+    }
+
+    function insertLink() {
+        var url = prompt('Enter URL:');
+        if (url) document.execCommand('createLink', false, url);
+    }
+
+    function syncContent() {
+        document.getElementById('post-content-hidden').value = document.getElementById('editor-content').innerHTML;
+    }
+
+    function openMediaPicker() {
+        document.getElementById('media-picker-overlay').classList.add('active');
+    }
+
+    function closeMediaPicker(e) {
+        if (e.target.id === 'media-picker-overlay') {
+            document.getElementById('media-picker-overlay').classList.remove('active');
+        }
+    }
+
+    function insertMedia(url, alt) {
+        var html = '<img src="' + url + '" alt="' + (alt || '') + '" style="max-width:100%;" />';
+        document.getElementById('editor-content').focus();
+        document.execCommand('insertHTML', false, html);
+        document.getElementById('media-picker-overlay').classList.remove('active');
+    }
+
+    document.getElementById('post-title').addEventListener('input', function() {
+        var slug = this.value.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/[\s-]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        document.getElementById('post-slug').value = slug;
+    });
+
+    document.getElementById('Post_Status').addEventListener('change', function() {
+        var scheduledGroup = document.getElementById('scheduled-group');
+        scheduledGroup.style.display = this.value === '2' ? 'block' : 'none';
+    });
+</script>
+}
