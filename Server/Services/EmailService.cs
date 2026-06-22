@@ -11,7 +11,16 @@ public class EmailService
     private readonly string _password;
     private readonly bool _useSsl;
 
-    public Func<string, string, string, bool, Task> EmailSendAction { get; private set; }
+    private readonly object _lock = new object();
+    private Func<string, string, string, bool, Task> _emailSendAction;
+
+    public Func<string, string, string, bool, Task> EmailSendAction
+    {
+        get
+        {
+            lock (_lock) return _emailSendAction;
+        }
+    }
 
     public EmailService(ServerConfig config)
     {
@@ -21,17 +30,31 @@ public class EmailService
         _password = config.email_password;
         _useSsl = config.email_useSsl;
 
-        EmailSendAction = SendAction;
+        _emailSendAction = SendAction;
     }
 
+    /// <summary>
+    /// Replace the email sending implementation.
+    /// Signature: Task(string to, string subject, string body, bool isHtml)
+    /// Note: Must complete successfully or throw on error. Reviewed during plugin approval.
+    /// </summary>
     public void ReplaceEmailSendAction(Func<string, string, string, bool, Task> action)
     {
-        EmailSendAction = action;
+        if (action == null) throw new ArgumentNullException(nameof(action));
+        lock (_lock)
+        {
+            _emailSendAction = action;
+        }
     }
 
     public async Task SendAsync(string to, string subject, string body, bool isHtml = false)
     {
-        await EmailSendAction(to, subject, body, isHtml);
+        Func<string, string, string, bool, Task> action;
+        lock (_lock)
+        {
+            action = _emailSendAction;
+        }
+        await action(to, subject, body, isHtml);
     }
 
     private async Task SendAction(string to, string subject, string body, bool isHtml = false)
