@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.IdentityModel.Tokens;
 using SharpPress.Helpers;
+using SharpPress.Middleware;
 using SharpPress.Middlewares;
 using SharpPress.Models;
 using SharpPress.Modules;
@@ -162,17 +163,19 @@ namespace SharpPress
             var app = builder.Build();
             var serviceProvider = app.Services;
 
-            await moduleManager.RunAfterBuildAsync(app);
-
-            app.UseForwardedHeaders();
-            app.UseMiddleware<UserControlMiddleware>();
-            app.UseMiddleware<SlugRoutingMiddleware>();
-            app.UseRouting();
-
             app.UseCors("DynamicPolicy");
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            await moduleManager.RunAfterBuildAsync(app);
+
+            app.UseForwardedHeaders();
+            app.UseMiddleware<UserControlMiddleware>();
+            app.UsePluginRoutes();
+            app.UseMiddleware<SlugRoutingMiddleware>();
+            app.UseRouting();
+
 
             var applicationPartManager = serviceProvider.GetRequiredService<ApplicationPartManager>();
             var pluginManager = serviceProvider.GetRequiredService<PluginManager>();

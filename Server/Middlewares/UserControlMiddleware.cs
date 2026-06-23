@@ -285,11 +285,15 @@ namespace SharpPress.Middlewares
             _maintenancePage = pre_maintenancePage.Replace("%support@mail%", config.SiteSettings?.General?.AdminEmail ?? $"support@{config.PanelDomain}");
         }
 
-        public async Task InvokeAsync(HttpContext context, FeatherDatabase database, ServerConfig config)
+        public async Task InvokeAsync(HttpContext context, FeatherDatabase database, ServerConfig config, UserService userService)
         {
             _isMaintenanceMode = config.SiteSettings?.Advanced?.MaintenanceMode ?? false;
+            var user = await userService.GetUserAsync(context.User);
 
-            if (_isMaintenanceMode && !IsUserAuthorizedForMaintenance(context))
+            if (_isMaintenanceMode && user != null && user.HasRole(UserRole.Moderator))
+                goto SkipMaintenanceCheck;
+
+            if (_isMaintenanceMode)
             {
                 if (!IsAllowedPath(context.Request.Path.Value) && !IsStaticAsset(context.Request.Path.Value))
                 {
@@ -299,24 +303,14 @@ namespace SharpPress.Middlewares
                     return;
                 }
             }
+        
+            SkipMaintenanceCheck:
 
             if (context.User.Identity?.IsAuthenticated ?? false)
             {
-                var username = context.User.Identity?.Name;
-
-                if (string.IsNullOrEmpty(username))
-                {
-                    _logger.Log("UserControlMiddleware: Username is null or empty");
-                    ClearAuthCookie(context);
-                    context.Response.Redirect("/");
-                    return;
-                }
-
-                var user = await database.GetByColumn<User>("Username", username);
-
                 if (user == null)
                 {
-                    _logger.Log($"UserControlMiddleware: User '{username}' not found in database");
+                    _logger.Log($"UserControlMiddleware: User '{user.Username}' not found in database");
                     ClearAuthCookie(context);
                     context.Response.Redirect(context.Request.Path + context.Request.QueryString);
                     return;
@@ -369,18 +363,6 @@ namespace SharpPress.Middlewares
             await _next(context);
         }
 
-        private bool IsUserAuthorizedForMaintenance(HttpContext context)
-        {
-            if (!context.User.Identity?.IsAuthenticated ?? false)
-                return false;
-
-            var username = context.User.Identity?.Name;
-            if (string.IsNullOrEmpty(username))
-                return false;
-
-            return true;
-        }
-
         private bool IsAllowedPath(string? path)
         {
             if (string.IsNullOrEmpty(path))
@@ -399,7 +381,9 @@ namespace SharpPress.Middlewares
                 "/terms",
                 "/health",
                 "/api/auth/login",
-                "/api/auth/register"
+                "/api/auth/register",
+                "/robots.txt",
+                "/sitemap.xml"
             };
 
             return allowedPaths.Any(p => path == p || path.StartsWith(p + "/"));

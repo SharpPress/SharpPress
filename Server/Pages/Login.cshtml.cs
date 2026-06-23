@@ -56,7 +56,7 @@ namespace SharpPress.Pages
                 {
                     HttpOnly = true,
                     Expires = DateTime.UtcNow.AddHours(168),
-                    Secure = false,
+                    Secure = true,
                     SameSite = SameSiteMode.Lax
                 };
                 Response.Cookies.Append("X-Access-Token", token, cookieOptions);
