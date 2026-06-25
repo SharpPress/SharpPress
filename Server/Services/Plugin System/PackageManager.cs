@@ -30,10 +30,10 @@ namespace SharpPress.Services
 
                     if (package.FileDataList.Any())
                     {
-                        var plguinFolder = Path.Combine(_pluginsFolder, package.Name);
-                        Directory.CreateDirectory(plguinFolder);
+                        var pluginFolder = Path.Combine(_pluginsFolder, package.Name);
+                        Directory.CreateDirectory(pluginFolder);
                         foreach (var fileData in package.FileDataList)
-                            await File.WriteAllBytesAsync(Path.Combine(plguinFolder, fileData.Key), fileData.Value);
+                            await File.WriteAllBytesAsync(Path.Combine(pluginFolder, fileData.Key), fileData.Value);
                     }
                     await File.WriteAllBytesAsync(Path.Combine(_pluginsFolder, $"{package.Name}.dll"), package.PluginDllData);
 
@@ -48,10 +48,10 @@ namespace SharpPress.Services
 
                     if (package.FileDataList.Any())
                     {
-                        var plguinFolder = Path.Combine(_pluginsFolder, package.Name);
-                        Directory.CreateDirectory(plguinFolder);
+                        var pluginFolder = Path.Combine(_pluginsFolder, package.Name);
+                        Directory.CreateDirectory(pluginFolder);
                         foreach (var fileData in package.FileDataList)
-                            await File.WriteAllBytesAsync(Path.Combine(plguinFolder, fileData.Key), fileData.Value);
+                            await File.WriteAllBytesAsync(Path.Combine(pluginFolder, fileData.Key), fileData.Value);
                     }
 
                     var tempFilePath = Path.Combine(_pluginsFolder, $"{package.Name}.tmp");

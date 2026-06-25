@@ -38,8 +38,9 @@ namespace SharpPress.Services
                 var json = File.ReadAllText(_statePath);
                 _state = JsonSerializer.Deserialize<Dictionary<string, bool>>(json) ?? new();
             }
-            catch
+            catch (Exception ex)
             {
+                Console.Error.WriteLine($"Failed to load plugin state from '{_statePath}': {ex}");
                 _state = new();
             }
         }
@@ -48,11 +49,17 @@ namespace SharpPress.Services
         {
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_statePath)!);
+                var directory = Path.GetDirectoryName(_statePath);
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
+
                 var json = JsonSerializer.Serialize(_state, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(_statePath, json);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to save plugin state to '{_statePath}': {ex}");
+            }
         }
     }
 }

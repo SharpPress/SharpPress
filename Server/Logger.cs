@@ -52,8 +52,6 @@ namespace SharpPress.Services
                         }
 
                         File.Delete(_logFile);
-
-                        File.WriteAllText(_logFile, string.Empty);
                     }
                 }
                 catch (Exception ex)
