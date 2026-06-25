@@ -8,8 +8,9 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Security;
 using System.Collections;
+using SharpPress.Services.Database;
 
-namespace SharpPress.Services
+namespace SharpPress.Services.Database
 {
     public sealed class FeatherDatabase : IAsyncDisposable
     {

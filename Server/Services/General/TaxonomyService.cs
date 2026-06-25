@@ -1,6 +1,7 @@
 using SharpPress.Models;
+using SharpPress.Services.Database;
 
-namespace SharpPress.Services
+namespace SharpPress.Services.General
 {
     public class TaxonomyService
     {

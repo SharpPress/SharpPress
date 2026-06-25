@@ -1,9 +1,10 @@
 using SharpPress.Events;
 using SharpPress.Models;
+using SharpPress.Services.Database;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 
-namespace SharpPress.Services
+namespace SharpPress.Services.General
 {
     public class MediaService
     {

@@ -11,6 +11,8 @@ using SharpPress.Modules;
 using SharpPress.Plugins;
 using SharpPress.Servers;
 using SharpPress.Services;
+using SharpPress.Services.Database;
+using SharpPress.Services.General;
 using System.Text;
 
 namespace SharpPress

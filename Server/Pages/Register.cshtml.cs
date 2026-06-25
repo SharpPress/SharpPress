@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SharpPress.Models;
 using SharpPress.Services;
+using SharpPress.Services.Database;
 using System.ComponentModel.DataAnnotations;
 
 namespace SharpPress.Pages
@@ -13,17 +14,19 @@ namespace SharpPress.Pages
 
         private readonly Logger logger;
         private readonly FeatherDatabase database;
+        private readonly ServerConfig _serverConfig;
         private readonly AuthenticationService authService;
 
         public string SuccessMessage { get; set; }
         public string ErrorMessage { get; set; }
 
 
-        public RegisterModel(FeatherDatabase _database, AuthenticationService authentication, Logger _logger)
+        public RegisterModel(FeatherDatabase _database, AuthenticationService authentication, Logger _logger, ServerConfig serverConfig)
         {
             logger = _logger;
             database = _database;
             authService = authentication;
+            _serverConfig = serverConfig;
         }
 
         public async Task<IActionResult> OnGet()
@@ -95,9 +98,10 @@ namespace SharpPress.Pages
                 var cookieOptions = new CookieOptions
                 {
                     HttpOnly = true,
-                    Expires = DateTime.UtcNow.AddHours(168),
+                    Expires = DateTime.UtcNow.AddHours(_serverConfig.JwtExpiryHours),
                     Secure = true,
-                    SameSite = SameSiteMode.Lax
+                    SameSite = SameSiteMode.Strict,
+                    IsEssential = true
                 };
                 Response.Cookies.Append("X-Access-Token", token, cookieOptions);
 

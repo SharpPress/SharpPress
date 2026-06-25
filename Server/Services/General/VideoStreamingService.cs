@@ -1,8 +1,9 @@
 ﻿using System;
 using SharpPress.Events;
 using SharpPress.Models;
+using SharpPress.Services;
 
-namespace SharpPress.Services
+namespace SharpPress.Services.General
 {
     public class VideoStreamingService
     {

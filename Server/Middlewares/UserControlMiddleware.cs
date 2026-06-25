@@ -1,5 +1,6 @@
 ﻿using SharpPress.Models;
 using SharpPress.Services;
+using SharpPress.Services.Database;
 
 namespace SharpPress.Middlewares
 {

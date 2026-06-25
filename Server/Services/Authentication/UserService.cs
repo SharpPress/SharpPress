@@ -1,5 +1,6 @@
 ﻿using SharpPress.Events;
 using SharpPress.Models;
+using SharpPress.Services.Database;
 using System.Security.Claims;
 
 namespace SharpPress.Services

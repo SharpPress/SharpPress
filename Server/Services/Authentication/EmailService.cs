@@ -3,6 +3,8 @@ using MailKit.Security;
 using MimeKit;
 using SharpPress.Models;
 
+namespace SharpPress.Services;
+
 public class EmailService
 {
     private readonly string _host;
