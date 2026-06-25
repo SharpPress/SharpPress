@@ -457,7 +457,7 @@ namespace SharpPress
                 }
                 catch (Exception ex)
                 {
-                    return Results.Problem("An error occurred while fetching stats.");
+                    return Results.Problem("An error occurred while fetching stats: " + ex.Message);
                 }
             });
 

@@ -64,7 +64,6 @@ namespace SharpPress.Services
                         File.Delete(finalFilePath);
                     }
                     File.Move(tempFilePath, finalFilePath);
-                    tempFilePath = null;
 
                     await _pluginManager.ReloadAllPluginsAsync();
 

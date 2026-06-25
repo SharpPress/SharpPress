@@ -531,7 +531,8 @@ namespace SharpPress.Services
 
         public void NotifyChange()
         {
-            var old = Interlocked.Exchange(ref _cts, new CancellationTokenSource());
+            using var cta = new CancellationTokenSource();
+            var old = Interlocked.Exchange(ref _cts, cta);
             old.Cancel();
             old.Dispose();
         }

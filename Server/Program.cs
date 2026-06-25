@@ -260,6 +260,8 @@ namespace SharpPress
         {
             try
             {
+                Endpoints.SignalShutdown();
+
                 var downloadProcessor = serviceProvider.GetService<DownloadJobProcessor>();
                 if (downloadProcessor != null)
                 {

@@ -61,7 +61,7 @@ public class EmailService
 
     private async Task SendAction(string to, string subject, string body, bool isHtml = false)
     {
-        var message = new MimeMessage();
+        using var message = new MimeMessage();
         message.From.Add(MailboxAddress.Parse(_username));
         message.To.Add(MailboxAddress.Parse(to));
         message.Subject = subject;

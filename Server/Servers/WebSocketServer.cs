@@ -150,7 +150,7 @@ namespace SharpPress.Servers
         {
             var socket = client.Socket;
             var buffer = new ArraySegment<byte>(new byte[_bufferSize]);
-            var ms = new MemoryStream();
+            using var ms = new MemoryStream();
 
             while (!token.IsCancellationRequested && socket.State == WebSocketState.Open)
             {

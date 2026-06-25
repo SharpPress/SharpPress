@@ -311,7 +311,6 @@ namespace SharpPress.Middlewares
             {
                 if (user == null)
                 {
-                    _logger.Log($"UserControlMiddleware: User '{user.Username}' not found in database");
                     ClearAuthCookie(context);
                     context.Response.Redirect(context.Request.Path + context.Request.QueryString);
                     return;
