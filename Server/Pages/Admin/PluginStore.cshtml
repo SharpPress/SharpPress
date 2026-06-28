@@ -294,7 +294,7 @@
                     <p class="card-description">@plugin.Description</p>
                     <div class="card-footer">
                         <div class="author-info">
-                            <div class="author-avatar">@plugin.Author[0].ToString().ToUpper()</div>
+                            <div class="author-avatar">@(string.IsNullOrWhiteSpace(plugin.Author) ? "?" : plugin.Author[0].ToString().ToUpper())</div>
                             <span class="author-name">@plugin.Author</span>
                         </div>
                         <form method="post" asp-page-handler="Install">

@@ -5,13 +5,33 @@
 
 @using System.Diagnostics
 @using System.Net.NetworkInformation
+@using System.Text.RegularExpressions
 
 @{
     Layout = "_AdminLayout";
     ViewData["Title"] = "Dashboard";
 
     string logFile = System.IO.Path.Combine(AppContext.BaseDirectory, "logs", "latest.log");
-    string[] logs = System.IO.File.Exists(logFile) ? System.IO.File.ReadLines(logFile).Reverse().Take(200).Reverse().ToArray() : Array.Empty<string>();
+    string[] logs;
+    if (System.IO.File.Exists(logFile))
+    {
+        var lastLines = new Queue<string>(200);
+        foreach (var line in System.IO.File.ReadLines(logFile))
+        {
+            if (lastLines.Count == 200)
+            {
+                lastLines.Dequeue();
+            }
+            lastLines.Enqueue(line);
+        }
+        logs = lastLines.ToArray();
+    }
+    else
+    {
+        logs = Array.Empty<string>();
+    }
+
+    var logLevelRegex = new Regex(@"^\[[^\]]*\]\[(?<level>[^\]]+)\]", RegexOptions.Compiled);
 }
 
 <style>
@@ -345,11 +365,11 @@
     }
 
     .dashboard-table td.log-security {
-        color: darkblue;
+        color: #60a5fa;
     }
 
     .dashboard-table td.log-custom {
-        color: green;
+        color: #22c55e;
     }
 </style>
 
@@ -453,19 +473,8 @@
             <table class="dashboard-table">
                 @foreach (var log in logs)
                 {
-                    var level = "";
-
-                    var start = log.IndexOf('[');
-                    if (start >= 0)
-                    {
-                        start = log.IndexOf('[', start + 1);
-                        if (start >= 0)
-                        {
-                            var end = log.IndexOf(']', start + 1);
-                            if (end > start)
-                                level = log.Substring(start + 1, end - start - 1);
-                        }
-                    }
+                    var match = logLevelRegex.Match(log);
+                    var level = match.Success ? match.Groups["level"].Value : "";
 
                     var cssClass = level switch
                     {
