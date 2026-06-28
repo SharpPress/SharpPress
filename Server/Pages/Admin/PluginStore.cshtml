@@ -280,12 +280,6 @@
     <div class="plugins-showcase">
         @foreach(var plugin in Model.Plugins)
         {
-            var installedPlugins = pluginManager.GetLoadedPlugins().Keys.Where(name => name == plugin.Name).FirstOrDefault();
-            if (installedPlugins != null)
-            {
-                continue;
-            }
-
             <div class="plugin-store-card">
                 <div class="card-banner">
                     <img src="@plugin.Icon" alt="@plugin.Name" class="plugin-icon-large" />

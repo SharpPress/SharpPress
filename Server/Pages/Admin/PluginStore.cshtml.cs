@@ -10,7 +10,7 @@ namespace SharpPress.Pages
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly PluginManager pluginManager;
 
-        private const string PluginsJsonUrl = "https://github.com/VoidbornGames/SharpPress_Plugins/raw/refs/heads/main/plugins.json";
+        private const string PluginsJsonUrl = "https://github.com/SharpPress/SharpPress_Plugins/raw/refs/heads/main/plugins.json";
 
         public List<PluginInfo> Plugins { get; set; } = new();
         public string ErrorMessage { get; set; }
