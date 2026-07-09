@@ -14,9 +14,32 @@ using SharpPress.Services;
 using SharpPress.Services.Database;
 using SharpPress.Services.General;
 using System.Text;
+using Version = SharpPress.Models.Version;
 
 namespace SharpPress
 {
+    public static class AppVersion
+    {
+        public static Version Version { get; private set; } = new Version() { Major = 1, Minor = 2, Patch = 1 };
+
+        public static async Task<Version?> ToVersion(string version)
+        {
+            var splited = version.Split(".");
+            if (splited.Length <= 0 || splited.Length > 3)
+                return null;
+
+            return new Version() { Major = Convert.ToInt32(splited[0]), Minor = Convert.ToInt32(splited[1]), Patch = Convert.ToInt32(splited[2]) };
+        }
+
+        public static async Task<bool> IsNewer(Version version)
+        {
+            if (version.Major <= Version.Major || version.Minor <= Version.Minor || version.Patch <= Version.Patch)
+                return false;
+
+            return true;
+        }
+    }
+
     public class Program
     {
         private static int httpPort = 12001;

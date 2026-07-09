@@ -232,6 +232,29 @@
             box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
 
+    .btn-installed {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, var(--success), blue);
+        color: white;
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+        .btn-installed:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
     .back-link {
         display: inline-flex;
         align-items: center;
@@ -297,17 +320,34 @@
                             <div class="author-avatar">@(string.IsNullOrWhiteSpace(plugin.Author) ? "?" : plugin.Author[0].ToString().ToUpper())</div>
                             <span class="author-name">@plugin.Author</span>
                         </div>
-                        <form method="post" asp-page-handler="Install">
-                            <input name="id" value="@plugin.Id" hidden/>
-                            <button type="submit" class="btn-install">
-                                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="17 8 12 3 7 8"></polyline>
-                                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                                </svg>
-                                Install
-                            </button>
-                        </form>
+                        @{
+                            if (Model.IncompatiblePlugins.Contains(plugin))
+                            {
+                                <button type="submit" class="btn-installed">
+                                    Incompatible
+                                </button>
+                            }
+                            else if (!Model.InstalledPlugins.Contains(plugin))
+                            {
+                                <form method="post" asp-page-handler="Install">
+                                    <input name="id" value="@plugin.Id" hidden />
+                                    <button type="submit" class="btn-install">
+                                        <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="17 8 12 3 7 8"></polyline>
+                                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                                        </svg>
+                                        Install
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <button type="submit" class="btn-installed">
+                                    Installed
+                                </button>
+                            }
+                        }
                     </div>
                 </div>
             </div>

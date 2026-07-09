@@ -11,9 +11,12 @@ namespace SharpPress.Pages
         private readonly PluginManager pluginManager;
 
         private const string PluginsJsonUrl = "https://github.com/SharpPress/SharpPress_Plugins/raw/refs/heads/main/plugins.json";
+        public string ErrorMessage { get; set; }
 
         public List<PluginInfo> Plugins { get; set; } = new();
-        public string ErrorMessage { get; set; }
+        public List<PluginInfo> InstalledPlugins { get; set; } = new();
+        public List<PluginInfo> IncompatiblePlugins { get; set; } = new();
+
 
         public PluginStoreModel(IHttpClientFactory httpClientFactory, PluginManager _pluginManager)
         {
@@ -30,6 +33,24 @@ namespace SharpPress.Pages
                 var manifest = JsonSerializer.Deserialize<PluginsManifest>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 Plugins = manifest?.Plugins ?? new();
+
+                if (Plugins.Count > 0)
+                {
+                    foreach(var plugin in pluginManager.PluginToAssemblyPath)
+                    {
+                        foreach(var pl in Plugins)
+                        {
+                            if (await AppVersion.IsNewer(await AppVersion.ToVersion(pl.MinVersion) ?? AppVersion.Version))
+                            {
+                                IncompatiblePlugins.Add(pl);
+                            }
+                        }
+
+                        var installedPlugin = Plugins.FirstOrDefault(p => Path.GetFileName(p.DownloadUrl) == Path.GetFileName(plugin.Value));
+                        if (installedPlugin != null)
+                            InstalledPlugins.Add(installedPlugin);
+                    }
+                }
             }
             catch
             {

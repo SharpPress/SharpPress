@@ -4,6 +4,14 @@ using SharpPress.Services;
 
 namespace SharpPress.Models
 {
+
+    public class Version
+    {
+        public int Major { get; set; }
+        public int Minor { get; set; }
+        public int Patch { get; set; }
+    }
+
     public class MySQL_Config
     {
         public string host { get; set; } = "localhost";
