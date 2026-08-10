@@ -13,8 +13,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="AngleSharp" Version="0.17.1" />
-	  <PackageReference Include="AngleSharp.Css" Version="0.17.0" />
+	  <PackageReference Include="AngleSharp" Version="1.7.1" />
+	  <PackageReference Include="AngleSharp.Css" Version="1.0.1" />
 	  <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
 	  <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
 	  <PackageReference Include="EmbedIO" Version="3.5.2" />
