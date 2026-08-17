@@ -13,33 +13,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="AngleSharp" Version="1.7.1" />
-	  <PackageReference Include="AngleSharp.Css" Version="1.0.1" />
-	  <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
-	  <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
-	  <PackageReference Include="EmbedIO" Version="3.5.2" />
-	  <PackageReference Include="EmbedIO.BearerToken" Version="3.4.2" />
-	  <PackageReference Include="FluentFTP" Version="54.2.0" />
-	  <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
-	  <PackageReference Include="HttpMultipartParser" Version="10.0.0" />
 	  <PackageReference Include="MailKit" Version="4.17.0" />
 	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.*" />
-	  <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
-	  <PackageReference Include="Microsoft.CodeAnalysis.Razor" Version="6.0.36" />
-	  <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="8.*" />
-	  <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
 	  <PackageReference Include="MimeKit" Version="4.17.0" />
 	  <PackageReference Include="MySqlConnector" Version="2.6.0" />
 	  <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-	  <PackageReference Include="RazorEngineCore" Version="2026.1.1" />
 	  <PackageReference Include="RazorLight" Version="2.3.1" />
 	  <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-	  <PackageReference Include="SSH.NET" Version="2025.1.0" />
-	  <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.*" />
-	  <PackageReference Include="System.Diagnostics.EventLog" Version="8.*" />
-	  <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.*" />
-	  <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.*" />
-	  <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.*" />
 	</ItemGroup>
 
 </Project>
