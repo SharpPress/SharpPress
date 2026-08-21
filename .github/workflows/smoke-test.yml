@@ -92,9 +92,29 @@ jobs:
         working-directory: Server
         run: cat server.log
 
+      - name: Start public tunnel
+        if: ${{ inputs.keep_running }}
+        working-directory: Server
+        run: |
+          curl -sL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+          nohup ./cloudflared tunnel --url http://127.0.0.1:8080 > tunnel.log 2>&1 &
+          for i in $(seq 1 30); do
+            url=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' tunnel.log | head -1)
+            if [ -n "$url" ]; then
+              echo "$url" >> "$GITHUB_STEP_SUMMARY"
+              echo "public url: $url"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "tunnel never came up"
+          cat tunnel.log
+          exit 1
+
       - name: Keep running until cancelled
         if: ${{ inputs.keep_running }}
         working-directory: Server
         run: |
-          echo "instance is up on port 8080, cancel this run when you are done"
+          echo "open the url from the step summary, cancel this run when you are done"
           tail -f server.log
