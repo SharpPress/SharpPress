@@ -92,15 +92,23 @@ jobs:
         working-directory: Server
         run: cat server.log
 
+      - name: Upload run output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-output
+          path: |
+            Server/server.log
+            Server/tunnel.log
+          if-no-files-found: ignore
+
       - name: Start public tunnel
         if: ${{ inputs.keep_running }}
         working-directory: Server
         run: |
-          curl -sL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-          chmod +x cloudflared
-          nohup ./cloudflared tunnel --url http://127.0.0.1:8080 > tunnel.log 2>&1 &
+          nohup ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 80:127.0.0.1:8080 nokey@localhost.run > tunnel.log 2>&1 &
           for i in $(seq 1 30); do
-            url=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' tunnel.log | head -1)
+            url=$(grep -oE 'https://[a-z0-9.-]+\.(lhr\.life|localhost\.run)' tunnel.log | head -1)
             if [ -n "$url" ]; then
               echo "$url" >> "$GITHUB_STEP_SUMMARY"
               echo "public url: $url"
