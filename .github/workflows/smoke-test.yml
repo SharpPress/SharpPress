@@ -126,7 +126,7 @@ jobs:
           if [ -z "$url" ]; then
             nohup ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:127.0.0.1:8080 a@free.pinggy.io > tunnel.log 2>&1 &
             for i in $(seq 1 30); do
-              url=$(grep -oE 'https://[a-zA-Z0-9-]+\.a\.free\.pinggy\.io' tunnel.log | head -1)
+              url=$(grep -oE 'https://[a-zA-Z0-9.-]+\.(pinggy\.net|pinggy-free\.link|pinggy\.io)' tunnel.log | grep -v 'dashboard\.pinggy' | head -1)
               if [ -n "$url" ]; then break; fi
               sleep 2
             done
