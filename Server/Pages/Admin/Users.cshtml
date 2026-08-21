@@ -615,6 +615,8 @@ else
     </div>
 </div>
 
+@Html.AntiForgeryToken()
+
 <script>
     let currentUserUUID = null;
 
@@ -742,8 +744,15 @@ else
 
     async function performAction(handler, uuid, successMessage, closeModal = false) {
         try {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            if (!token) {
+                showToast('Security token not found, refresh the page', 'error');
+                return;
+            }
+
             const formData = new FormData();
             formData.append('uuid', uuid);
+            formData.append('__RequestVerificationToken', token);
 
             const response = await fetch(`?handler=${handler}`, {
                 method: 'POST',

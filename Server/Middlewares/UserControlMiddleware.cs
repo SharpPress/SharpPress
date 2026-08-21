@@ -282,8 +282,9 @@ namespace SharpPress.Middlewares
             _logger = logger;
             _authService = authenticationService;
 
-            _bannedPage = pre_bannedPage.Replace("%support@mail%", config.SiteSettings?.General?.AdminEmail ?? $"support@{config.PanelDomain}");
-            _maintenancePage = pre_maintenancePage.Replace("%support@mail%", config.SiteSettings?.General?.AdminEmail ?? $"support@{config.PanelDomain}");
+            var domain = config.PanelDomain.Replace("https://", "").Replace("http://", "").TrimEnd('/');
+            _bannedPage = pre_bannedPage.Replace("%support@mail%", config.SiteSettings?.General?.AdminEmail ?? $"support@{domain}");
+            _maintenancePage = pre_maintenancePage.Replace("%support@mail%", config.SiteSettings?.General?.AdminEmail ?? $"support@{domain}");
         }
 
         public async Task InvokeAsync(HttpContext context, FeatherDatabase database, ServerConfig config, UserService userService)

@@ -100,7 +100,7 @@ namespace SharpPress
                 options.AddPolicy("DynamicPolicy", policyBuilder =>
                 {
                     policyBuilder
-                        .WithOrigins($"https://{configManager.Config.PanelDomain}")
+                        .WithOrigins(ConfigManager.NormalizeUrl(configManager.Config.PanelDomain))
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials();

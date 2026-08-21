@@ -167,7 +167,7 @@ namespace SharpPress
 
             app.MapGet("/rss.xml", async (HttpRequest request, HttpResponse response, PostService postService, ConfigManager configManager) =>
             {
-                string baseUrl = $"https://{configManager.Config.PanelDomain}";
+                string baseUrl = ConfigManager.NormalizeUrl(configManager.Config.PanelDomain);
                 var posts = await postService.GetPublishedPostsAsync();
 
                 var rss = new XElement("rss", new XAttribute("version", "2.0"),
@@ -192,7 +192,7 @@ namespace SharpPress
 
             app.MapGet("/sitemap.xml", async (HttpRequest request, HttpResponse response, PostService postService, ConfigManager configManager) =>
             {
-                string baseUrl = $"https://{configManager.Config.PanelDomain}";
+                string baseUrl = ConfigManager.NormalizeUrl(configManager.Config.PanelDomain);
                 var posts = await postService.GetPublishedPostsAsync();
 
                 var sitemap = new XElement(XNamespace.Get("http://www.sitemaps.org/schemas/sitemap/0.9") + "urlset",
@@ -205,7 +205,7 @@ namespace SharpPress
 
             app.MapGet("/robots.txt", (HttpRequest request, HttpResponse response, ConfigManager configManager) =>
             {
-                string baseUrl = $"https://{configManager.Config.PanelDomain}";
+                string baseUrl = ConfigManager.NormalizeUrl(configManager.Config.PanelDomain);
 
                 response.Headers.CacheControl = "public, max-age=600";
                 return Results.Text($"User-agent: *\nAllow: /\n\nSitemap: {baseUrl}/sitemap.xml\n", "text/plain", Encoding.UTF8);

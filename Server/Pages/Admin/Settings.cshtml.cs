@@ -34,6 +34,7 @@ namespace SharpPress.Pages
             Input.AdminEmail = s?.General?.AdminEmail ?? "";
             Input.Timezone = s?.General?.Timezone ?? "UTC";
             Input.FooterText = s?.General?.FooterText ?? "";
+            Input.SiteUrl = _configManager.Config.PanelDomain;
             Input.ForceHttps = s?.Security?.ForceHttps ?? false;
             Input.AllowRegistration = s?.Security?.AllowRegistration ?? false;
             Input.Require2FA = s?.Security?.Require2FA ?? false;
@@ -79,6 +80,8 @@ namespace SharpPress.Pages
                 }
             };
 
+            _configManager.Config.PanelDomain = ConfigManager.NormalizeUrl(Input.SiteUrl);
+
             await _configManager.SaveConfig();
             TempData["SuccessMessage"] = "Settings updated successfully.";
 
@@ -89,6 +92,7 @@ namespace SharpPress.Pages
         {
             public string SiteName { get; set; }
             public string SiteDescription { get; set; }
+            public string SiteUrl { get; set; }
             public string AdminEmail { get; set; }
             public string Timezone { get; set; }
             public string FooterText { get; set; }

@@ -55,6 +55,19 @@ namespace SharpPress.Services
             }
         }
 
+        public static string NormalizeUrl(string url)
+        {
+            url = (url ?? "").Trim().TrimEnd('/');
+
+            if (url.Length == 0)
+                return "https://example.com";
+
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                url = "https://" + url;
+
+            return url;
+        }
+
         public async Task SaveConfig()
         {
             try
