@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using SharpPress.Models;
 using SharpPress.Services;
 using SharpPress.Services.Database;
+using SharpPress.Middlewares;
 using System.ComponentModel.DataAnnotations;
 
 namespace SharpPress.Pages
@@ -16,14 +17,16 @@ namespace SharpPress.Pages
         private readonly FeatherDatabase _database;
         private readonly AuthenticationService _authService;
         private readonly ConfigManager _configManager;
+        private readonly SetupGate _setupGate;
 
         public string? ErrorMessage { get; set; }
 
-        public SetupModel(FeatherDatabase database, AuthenticationService authService, ConfigManager configManager, Logger logger)
+        public SetupModel(FeatherDatabase database, AuthenticationService authService, ConfigManager configManager, SetupGate setupGate, Logger logger)
         {
             _database = database;
             _authService = authService;
             _configManager = configManager;
+            _setupGate = setupGate;
             _logger = logger;
         }
 
@@ -91,6 +94,7 @@ namespace SharpPress.Pages
                 await _configManager.SaveConfig();
 
                 _logger.Log($"✅ Setup completed, admin account created: {Input.Username}");
+                _setupGate.MarkCompleted();
 
                 string token = _authService.GenerateJwtToken(admin);
                 Response.Cookies.Append("X-Access-Token", token, _authService.CreateAuthCookieOptions());

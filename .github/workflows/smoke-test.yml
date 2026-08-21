@@ -7,6 +7,10 @@ on:
         description: 'Keep the instance alive until you cancel the run'
         type: boolean
         default: false
+      auto_setup:
+        description: 'Create the admin account automatically so every page gets checked'
+        type: boolean
+        default: false
 
 jobs:
   run:
@@ -71,17 +75,55 @@ jobs:
           exit 1
 
       - name: Smoke checks
+        env:
+          AUTO_SETUP: ${{ inputs.auto_setup }}
         run: |
           check() {
-            curl -sf "http://127.0.0.1:8080$1" > /tmp/body || { echo "$1 did not answer"; exit 1; }
+            result=$(curl -sL -o /tmp/body -w "%{http_code} %{url_effective}" "http://127.0.0.1:8080$1")
+            code=${result%% *}
+            eff=${result#* }
+            if [ "$code" != "200" ] || [ "$eff" != "http://127.0.0.1:8080$1" ]; then
+              echo "$1 ended at $eff ($code)"
+              exit 1
+            fi
             if [ -n "$2" ] && ! grep -qi "$2" /tmp/body; then
               echo "$1 did not contain '$2'"
               exit 1
             fi
             echo "ok $1"
           }
+
           check /health Healthy
           check /setup
+
+          if [ "$AUTO_SETUP" != "true" ]; then
+            loc=$(curl -s -o /dev/null -w "%{redirect_url}" http://127.0.0.1:8080/Login)
+            if ! echo "$loc" | grep -q "/setup"; then
+              echo "expected /Login to redirect to /setup on a fresh install, got '$loc'"
+              exit 1
+            fi
+            echo "ok /Login redirects to /setup"
+            exit 0
+          fi
+
+          curl -s -c /tmp/jar http://127.0.0.1:8080/setup -o /tmp/setup.html
+          token=$(grep '__RequestVerificationToken' /tmp/setup.html | grep -oE 'value="[^"]+"' | head -1 | cut -d'"' -f2)
+          code=$(curl -s -b /tmp/jar -o /tmp/done.html -w "%{http_code}" \
+            --data-urlencode "Input.SiteName=SharpPress" \
+            --data-urlencode "Input.SiteDescription=ci run" \
+            --data-urlencode "Input.Username=admin" \
+            --data-urlencode "Input.Email=admin@example.com" \
+            --data-urlencode "Input.Password=Admin123!x" \
+            --data-urlencode "Input.ConfirmPassword=Admin123!x" \
+            --data-urlencode "__RequestVerificationToken=$token" \
+            http://127.0.0.1:8080/setup)
+          if [ "$code" != "302" ]; then
+            echo "setup post returned $code"
+            cat /tmp/done.html
+            exit 1
+          fi
+          echo "ok setup"
+
           check /Login
           check /rss.xml "<rss"
           check /sitemap.xml "<urlset"

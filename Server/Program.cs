@@ -127,6 +127,7 @@ namespace SharpPress
             builder.Services.AddSingleton<IActionDescriptorChangeProvider>(sp => sp.GetRequiredService<PluginActionDescriptorChangeProvider>());
             builder.Services.AddSingleton<Services.EventHandler>();
             builder.Services.AddSingleton(provider => new FeatherDatabase(loggerAdapter, provider.GetRequiredService<ConfigManager>().Config.MySQL_Config));
+            builder.Services.AddSingleton<SetupGate>();
             builder.Services.AddSingleton<UserService>();
             builder.Services.AddSingleton<WebSocketServer>();
             builder.Services.AddSingleton<ValidationService>();
@@ -197,6 +198,7 @@ namespace SharpPress
             await moduleManager.RunAfterBuildAsync(app);
 
             app.UseForwardedHeaders();
+            app.UseMiddleware<SetupRedirectMiddleware>();
             app.UseMiddleware<UserControlMiddleware>();
             app.UsePluginRoutes();
             app.UseMiddleware<SlugRoutingMiddleware>();
