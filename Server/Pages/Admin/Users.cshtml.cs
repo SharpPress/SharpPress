@@ -75,6 +75,7 @@ namespace SharpPress.Pages
             user.UpdatedAt = DateTime.UtcNow;
 
             await _database.SaveData(user);
+            _userService.InvalidateUserCache(user.Username);
             _logger.Log($"User '{user.Username}' (UUID: {user.UUID}) was banned by {admin.Username}");
 
             return new JsonResult(new { success = true, message = $"User {user.Username} has been banned" });
@@ -94,6 +95,7 @@ namespace SharpPress.Pages
             user.UpdatedAt = DateTime.UtcNow;
 
             await _database.SaveData(user);
+            _userService.InvalidateUserCache(user.Username);
             _logger.Log($"User '{user.Username}' (UUID: {user.UUID}) was unbanned by {admin.Username}");
 
             return new JsonResult(new { success = true, message = $"User {user.Username} has been unbanned" });
@@ -113,6 +115,7 @@ namespace SharpPress.Pages
             user.UpdatedAt = DateTime.UtcNow;
 
             await _database.SaveData(user);
+            _userService.InvalidateUserCache(user.Username);
             _logger.Log($"User '{user.Username}' (UUID: {user.UUID}) was locked for {minutes} minutes by {admin.Username}");
 
             return new JsonResult(new { success = true, message = $"User {user.Username} locked for {minutes} minutes" });
@@ -133,6 +136,7 @@ namespace SharpPress.Pages
             user.UpdatedAt = DateTime.UtcNow;
 
             await _database.SaveData(user);
+            _userService.InvalidateUserCache(user.Username);
             _logger.Log($"User '{user.Username}' (UUID: {user.UUID}) was unlocked by {admin.Username}");
 
             return new JsonResult(new { success = true, message = $"User {user.Username} has been unlocked" });
@@ -153,6 +157,7 @@ namespace SharpPress.Pages
             user.UpdatedAt = DateTime.UtcNow;
 
             await _database.SaveData(user);
+            _userService.InvalidateUserCache(user.Username);
             _logger.Log($"User '{user.Username}' (UUID: {user.UUID}) role changed from {oldRole} to {newRole} by {admin.Username}");
 
             return new JsonResult(new { success = true, message = $"User role changed to {newRole}" });
@@ -173,6 +178,7 @@ namespace SharpPress.Pages
             user.UpdatedAt = DateTime.UtcNow;
 
             await _database.SaveData(user);
+            _userService.InvalidateUserCache(user.Username);
             _logger.Log($"Password reset initiated for user '{user.Username}' (UUID: {user.UUID}) by {admin.Username}");
 
             return new JsonResult(new
@@ -198,6 +204,7 @@ namespace SharpPress.Pages
             user.UpdatedAt = DateTime.UtcNow;
 
             await _database.SaveData(user);
+            _userService.InvalidateUserCache(user.Username);
             _logger.Log($"2FA disabled for user '{user.Username}' (UUID: {user.UUID}) by {admin.Username}");
 
             return new JsonResult(new { success = true, message = $"2FA disabled for {user.Username}" });
@@ -218,6 +225,7 @@ namespace SharpPress.Pages
 
             var username = user.Username;
             await _database.Delete<User>(user.Id);
+            _userService.InvalidateUserCache(username);
             _logger.Log($"User '{username}' (UUID: {user.UUID}) was deleted by {admin.Username}");
 
             return new JsonResult(new { success = true, message = $"User {username} has been deleted" });

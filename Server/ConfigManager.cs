@@ -1,11 +1,14 @@
 ﻿using Newtonsoft.Json;
 using SharpPress.Models;
 using SharpPress.Services.General;
+using System.Security.Cryptography;
 
 namespace SharpPress.Services
 {
     public class ConfigManager
     {
+        private const string LegacyJwtSecret = "your-super-secret-jwt-key-change-this-in-production-32-chars-min";
+
         private readonly string _configFile;
         private readonly Logger _logger;
 
@@ -32,9 +35,18 @@ namespace SharpPress.Services
                 else
                 {
                     Config = new ServerConfig();
-                    File.WriteAllText(_configFile, JsonConvert.SerializeObject(Config, Formatting.Indented));
                 }
-                _logger.Log("✅ Config loaded.");
+
+                if (string.IsNullOrWhiteSpace(Config.JwtSecret) || Config.JwtSecret == LegacyJwtSecret)
+                {
+                    Config.JwtSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+                    File.WriteAllText(_configFile, JsonConvert.SerializeObject(Config, Formatting.Indented));
+                    _logger.Log("🔐 Generated a new JwtSecret, everyone will need to sign in again");
+                }
+                else
+                {
+                    _logger.Log("✅ Config loaded.");
+                }
             }
             catch (Exception ex)
             {

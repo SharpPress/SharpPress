@@ -349,13 +349,7 @@ namespace SharpPress.Middlewares
                     var renewedToken = _authService.TryRenewTokenIfExpiringSoon(token, user);
                     if (renewedToken != null)
                     {
-                        context.Response.Cookies.Append("X-Access-Token", renewedToken, new CookieOptions
-                        {
-                            HttpOnly = true,
-                            Secure = true,
-                            SameSite = SameSiteMode.Lax,
-                            Expires = DateTimeOffset.UtcNow.AddDays(7)
-                        });
+                        context.Response.Cookies.Append("X-Access-Token", renewedToken, _authService.CreateAuthCookieOptions());
                     }
                 }
             }

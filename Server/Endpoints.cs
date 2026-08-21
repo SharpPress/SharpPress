@@ -13,6 +13,7 @@ using System.Net.Sockets;
 using System.Security;
 using System.Security.Cryptography;
 using System.Text;
+using System.Xml.Linq;
 
 namespace SharpPress
 {
@@ -164,12 +165,61 @@ namespace SharpPress
                 await next();
             });
 
+            app.MapGet("/rss.xml", async (HttpRequest request, HttpResponse response, PostService postService, ConfigManager configManager) =>
+            {
+                string baseUrl = $"https://{configManager.Config.PanelDomain}";
+                var posts = await postService.GetPublishedPostsAsync();
+
+                var rss = new XElement("rss", new XAttribute("version", "2.0"),
+                    new XElement("channel",
+                        new XElement("title", configManager.Config.SiteSettings?.General?.SiteName ?? "SharpPress"),
+                        new XElement("link", baseUrl),
+                        new XElement("description", configManager.Config.SiteSettings?.General?.SiteDescription ?? ""),
+                        posts
+                            .Where(p => p.PublishedAt.HasValue)
+                            .OrderByDescending(p => p.PublishedAt.Value)
+                            .Take(20)
+                            .Select(p => new XElement("item",
+                                new XElement("title", p.Title),
+                                new XElement("link", $"{baseUrl}/blog/{p.Slug}"),
+                                new XElement("guid", $"{baseUrl}/blog/{p.Slug}"),
+                                new XElement("description", p.Excerpt ?? ""),
+                                new XElement("pubDate", p.PublishedAt.Value.ToString("R"))))));
+
+                response.Headers.CacheControl = "public, max-age=600";
+                return Results.Text(rss.ToString(), "application/rss+xml", Encoding.UTF8);
+            });
+
+            app.MapGet("/sitemap.xml", async (HttpRequest request, HttpResponse response, PostService postService, ConfigManager configManager) =>
+            {
+                string baseUrl = $"https://{configManager.Config.PanelDomain}";
+                var posts = await postService.GetPublishedPostsAsync();
+
+                var sitemap = new XElement(XNamespace.Get("http://www.sitemaps.org/schemas/sitemap/0.9") + "urlset",
+                    new[] { "/", "/login", "/register" }.Select(path => BuildSitemapUrl(baseUrl, path, null))
+                    .Concat(posts.Select(p => BuildSitemapUrl(baseUrl, $"/blog/{p.Slug}", p.UpdatedAt))));
+
+                response.Headers.CacheControl = "public, max-age=600";
+                return Results.Text(sitemap.ToString(), "application/xml", Encoding.UTF8);
+            });
+
+            app.MapGet("/robots.txt", (HttpRequest request, HttpResponse response, ConfigManager configManager) =>
+            {
+                string baseUrl = $"https://{configManager.Config.PanelDomain}";
+
+                response.Headers.CacheControl = "public, max-age=600";
+                return Results.Text($"User-agent: *\nAllow: /\n\nSitemap: {baseUrl}/sitemap.xml\n", "text/plain", Encoding.UTF8);
+            });
+
             bool ValidateAdmin(HttpRequest request, AuthenticationService authService)
             {
                 string authHeader = request.Headers["Authorization"].ToString();
                 if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ")) return false;
                 string token = authHeader.Substring("Bearer ".Length);
-                return authService.ValidateJwtToken(token) && authService.GetRoleFromToken(token).ToLower() == "admin";
+                if (!authService.ValidateJwtToken(token)) return false;
+
+                string role = authService.GetRoleFromToken(token);
+                return Enum.TryParse(role, ignoreCase: true, out UserRole roles) && (roles & UserRole.Admin) != 0;
             }
 
             //app.MapGet("/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow }));
@@ -1346,6 +1396,17 @@ namespace SharpPress
         }
 
         public static void SignalShutdown() => _isShuttingDown = true;
+        private static XElement BuildSitemapUrl(string baseUrl, string path, DateTime? lastModified)
+        {
+            XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+
+            var url = new XElement(ns + "url", new XElement(ns + "loc", $"{baseUrl}{path}"));
+            if (lastModified.HasValue)
+                url.Add(new XElement(ns + "lastmod", lastModified.Value.ToString("yyyy-MM-dd")));
+
+            return url;
+        }
+
         public static async Task RegisterServices(ServerConfig serverConfig)
         {
             if (serverConfig.SiteSettings != null && serverConfig.SiteSettings.Security != null)

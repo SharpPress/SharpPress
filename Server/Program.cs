@@ -33,10 +33,13 @@ namespace SharpPress
 
         public static async Task<bool> IsNewer(Version version)
         {
-            if (version.Major <= Version.Major || version.Minor <= Version.Minor || version.Patch <= Version.Patch)
-                return false;
+            if (version.Major != Version.Major)
+                return version.Major > Version.Major;
 
-            return true;
+            if (version.Minor != Version.Minor)
+                return version.Minor > Version.Minor;
+
+            return version.Patch > Version.Patch;
         }
     }
 
@@ -68,9 +71,6 @@ namespace SharpPress
                 options.ForwardedHeaders =
                     ForwardedHeaders.XForwardedFor |
                     ForwardedHeaders.XForwardedProto;
-
-                options.KnownNetworks.Clear();
-                options.KnownProxies.Clear();
             });
 
             var logger = new Logger();

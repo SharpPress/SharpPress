@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;
 using SharpPress.Models;
 using SharpPress.Services;
@@ -13,6 +14,11 @@ namespace SharpPress.Services
 {
     public class AuthenticationService
     {
+        private const string HashPrefix = "$PBKDF2-SHA256$";
+        private const int Pbkdf2Iterations = 210000;
+        private const int SaltSize = 16;
+        private const int HashSize = 32;
+
         private readonly string _jwtSecret;
         private readonly SymmetricSecurityKey _jwtKey;
         private readonly ServerConfig _config;
@@ -22,7 +28,7 @@ namespace SharpPress.Services
 
         public AuthenticationService(ServerConfig config, Logger logger)
         {
-            _jwtSecret = config.JwtSecret ?? "your-super-secret-jwt-key-change-this-in-production-32-chars-min";
+            _jwtSecret = config.JwtSecret;
             _jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret));
             _config = config;
             _logger = logger;
@@ -30,44 +36,145 @@ namespace SharpPress.Services
 
         public string HashPassword(string password)
         {
-            byte[] salt;
-            using var rng = new RNGCryptoServiceProvider();
-            rng.GetBytes(salt = new byte[16]);
+            byte[] salt = RandomNumberGenerator.GetBytes(SaltSize);
+            byte[] hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, Pbkdf2Iterations, HashAlgorithmName.SHA256, HashSize);
 
-            using var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 10000);
-            byte[] hash = pbkdf2.GetBytes(20);
-
-            byte[] hashBytes = new byte[36];
-            Array.Copy(salt, 0, hashBytes, 0, 16);
-            Array.Copy(hash, 0, hashBytes, 16, 20);
-
-            return Convert.ToBase64String(hashBytes);
+            return $"{HashPrefix}{Pbkdf2Iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
         }
 
         public bool VerifyPassword(string inputPassword, string storedPassword)
         {
             try
             {
-                byte[] hashBytes = Convert.FromBase64String(storedPassword);
-
-                byte[] salt = new byte[16];
-                Array.Copy(hashBytes, 0, salt, 0, 16);
-
-                using var pbkdf2 = new Rfc2898DeriveBytes(inputPassword, salt, 10000);
-                byte[] hash = pbkdf2.GetBytes(20);
-
-                for (int i = 0; i < 20; i++)
+                if (storedPassword.StartsWith(HashPrefix, StringComparison.Ordinal))
                 {
-                    if (hashBytes[i + 16] != hash[i])
+                    string[] parts = storedPassword.Substring(HashPrefix.Length).Split('$');
+                    if (parts.Length != 3)
                         return false;
+
+                    int iterations = int.Parse(parts[0]);
+                    byte[] salt = Convert.FromBase64String(parts[1]);
+                    byte[] expected = Convert.FromBase64String(parts[2]);
+
+                    byte[] actual = Rfc2898DeriveBytes.Pbkdf2(inputPassword, salt, iterations, HashAlgorithmName.SHA256, expected.Length);
+                    return CryptographicOperations.FixedTimeEquals(actual, expected);
                 }
 
-                return true;
+                byte[] hashBytes = Convert.FromBase64String(storedPassword);
+                if (hashBytes.Length != 36)
+                    return false;
+
+                byte[] legacySalt = hashBytes[..16];
+                byte[] legacyHash = hashBytes[16..];
+                byte[] legacyActual = Rfc2898DeriveBytes.Pbkdf2(inputPassword, legacySalt, 10000, HashAlgorithmName.SHA1, 20);
+
+                return CryptographicOperations.FixedTimeEquals(legacyActual, legacyHash);
             }
             catch
             {
                 return false;
             }
+        }
+
+        public bool NeedsRehash(string storedPassword)
+        {
+            return !storedPassword.StartsWith(HashPrefix, StringComparison.Ordinal);
+        }
+
+        public string GenerateTwoFactorSecret()
+        {
+            return Base32Encode(RandomNumberGenerator.GetBytes(20));
+        }
+
+        public bool VerifyTotpCode(string base32Secret, string code)
+        {
+            if (string.IsNullOrWhiteSpace(base32Secret) || string.IsNullOrWhiteSpace(code))
+                return false;
+
+            code = code.Replace(" ", "").Trim();
+            if (code.Length != 6 || !code.All(char.IsDigit))
+                return false;
+
+            byte[] key = Base32Decode(base32Secret);
+            if (key.Length == 0)
+                return false;
+
+            long step = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 30;
+            for (long drift = -1; drift <= 1; drift++)
+            {
+                if (ComputeTotp(key, step + drift) == code)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static string ComputeTotp(byte[] key, long step)
+        {
+            byte[] counter = BitConverter.GetBytes(step);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(counter);
+
+            using var hmac = new HMACSHA1(key);
+            byte[] hash = hmac.ComputeHash(counter);
+
+            int offset = hash[^1] & 0x0F;
+            int binary = ((hash[offset] & 0x7F) << 24) | (hash[offset + 1] << 16) | (hash[offset + 2] << 8) | hash[offset + 3];
+
+            return (binary % 1000000).ToString("D6");
+        }
+
+        private static string Base32Encode(byte[] data)
+        {
+            const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+            var sb = new StringBuilder();
+
+            for (int i = 0; i < data.Length; i += 5)
+            {
+                int b0 = data[i];
+                int b1 = i + 1 < data.Length ? data[i + 1] : 0;
+                int b2 = i + 2 < data.Length ? data[i + 2] : 0;
+                int b3 = i + 3 < data.Length ? data[i + 3] : 0;
+                int b4 = i + 4 < data.Length ? data[i + 4] : 0;
+
+                sb.Append(alphabet[(b0 >> 3) & 31]);
+                sb.Append(alphabet[((b0 & 7) << 2) | ((b1 >> 6) & 3)]);
+                sb.Append(alphabet[(b1 >> 1) & 31]);
+                sb.Append(alphabet[((b1 & 1) << 4) | ((b2 >> 4) & 15)]);
+                sb.Append(alphabet[((b2 & 15) << 1) | ((b3 >> 7) & 1)]);
+                sb.Append(alphabet[(b3 >> 2) & 31]);
+                sb.Append(alphabet[((b3 & 3) << 3) | ((b4 >> 5) & 7)]);
+                sb.Append(alphabet[b4 & 31]);
+            }
+
+            return sb.ToString();
+        }
+
+        private static byte[] Base32Decode(string input)
+        {
+            const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+            string clean = input.Replace("=", "").Replace(" ", "").ToUpperInvariant();
+
+            var output = new List<byte>();
+            int buffer = 0, bits = 0;
+
+            foreach (char c in clean)
+            {
+                int value = alphabet.IndexOf(c);
+                if (value < 0)
+                    return Array.Empty<byte>();
+
+                buffer = (buffer << 5) | value;
+                bits += 5;
+
+                if (bits >= 8)
+                {
+                    bits -= 8;
+                    output.Add((byte)((buffer >> bits) & 0xFF));
+                }
+            }
+
+            return output.ToArray();
         }
 
         public string GenerateJwtToken(User user)
@@ -93,13 +200,22 @@ namespace SharpPress.Services
 
         public string GenerateRefreshToken()
         {
-            var randomNumber = new byte[32];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(randomNumber);
-            return Convert.ToBase64String(randomNumber);
+            return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
         }
 
-        public string? TryRenewTokenIfExpiringSoon(string currentToken, User user, int minutesBeforeExpiry = 960)
+        public CookieOptions CreateAuthCookieOptions()
+        {
+            return new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTimeOffset.UtcNow.AddHours(_config.JwtExpiryHours),
+                IsEssential = true
+            };
+        }
+
+        public string? TryRenewTokenIfExpiringSoon(string currentToken, User user, int minutesBeforeExpiry = 60)
         {
             try
             {
@@ -223,10 +339,7 @@ namespace SharpPress.Services
 
         public string GeneratePasswordResetToken()
         {
-            var tokenBytes = new byte[32];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(tokenBytes);
-            return Convert.ToBase64String(tokenBytes);
+            return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
         }
 
         public bool ValidatePasswordResetToken(User user, string token)
@@ -239,10 +352,7 @@ namespace SharpPress.Services
 
         public string GenerateResetToken()
         {
-            var randomNumber = new byte[32];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(randomNumber);
-            return Convert.ToBase64String(randomNumber).Replace("+", "-").Replace("/", "_").TrimEnd('=');
+            return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "-").Replace("/", "_").TrimEnd('=');
         }
     }
 }

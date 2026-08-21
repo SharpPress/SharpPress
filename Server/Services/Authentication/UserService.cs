@@ -12,7 +12,6 @@ namespace SharpPress.Services
         private readonly FeatherDatabase _featherDatabase;
         private readonly CacheService _cacheService;
         private readonly EmailService _emailService;
-        private readonly ServerConfig _serverConfig;
         private readonly Logger _logger;
         private readonly IEventBus _eventBus;
 
@@ -23,7 +22,6 @@ namespace SharpPress.Services
             CacheService cacheService,
             IEventBus eventBus,
             EmailService emailService,
-            ConfigManager configManager,
             FeatherDatabase featherDatabase)
         {
             _logger = logger;
@@ -32,26 +30,7 @@ namespace SharpPress.Services
             _cacheService = cacheService;
             _eventBus = eventBus;
             _emailService = emailService;
-            _serverConfig = configManager.Config;
             _featherDatabase = featherDatabase;
-
-            Task.Run(async () =>
-            {
-                var adminUser = await _featherDatabase.Query<User>().Where(u => (int)u.Roles >= (int)UserRole.Admin).FirstOrDefaultAsync();
-                if (adminUser == null)
-                {
-                    adminUser = new User
-                    {
-                        Username = "admin",
-                        Password = _authService.HashPassword(configManager.Config.ADMIN_PASSWORD),
-                        Email = "admin@example.com",
-                        UUID = Guid.NewGuid().ToString(),
-                        Roles = UserRole.Admin
-                    };
-                    await _featherDatabase.SaveData(adminUser);
-                    _logger.Log($"✅ Created default admin user (email: admin@example.com, password: {configManager.Config.ADMIN_PASSWORD})");
-                }
-            }).GetAwaiter().GetResult();
         }
 
         public async Task<User> GetUserAsync(ClaimsPrincipal User)
@@ -59,11 +38,21 @@ namespace SharpPress.Services
             if (User == null || User.Identity.IsAuthenticated == false || string.IsNullOrWhiteSpace(User.Identity.Name))
                 return null;
 
+            string cacheKey = $"user:name:{User.Identity.Name}";
+            if (_cacheService.Get<User>(cacheKey) is User cached)
+                return cached;
+
             var _user = await _featherDatabase.GetByLinq<User>(u => u.Username == User.Identity.Name);
             if (_user == null)
                 return null;
 
+            _cacheService.Set(cacheKey, _user, TimeSpan.FromSeconds(30));
             return _user;
+        }
+
+        public void InvalidateUserCache(string username)
+        {
+            _cacheService.Remove($"user:name:{username}");
         }
 
         public async Task<(User user, string message)> CreateUserAsync(RegisterRequest request)
@@ -123,6 +112,9 @@ namespace SharpPress.Services
 
                 user.LastLogin = DateTime.UtcNow;
 
+                if (_authService.NeedsRehash(user.Password))
+                    user.Password = _authService.HashPassword(request.Password);
+
                 if (request.RememberMe || string.IsNullOrEmpty(user.RefreshToken) || user.RefreshTokenExpiry <= DateTime.UtcNow)
                 {
                     user.RefreshToken = _authService.GenerateRefreshToken();
@@ -178,6 +170,7 @@ namespace SharpPress.Services
 
             user.Password = _authService.HashPassword(newPassword);
             await _featherDatabase.SaveData(user);
+            InvalidateUserCache(username);
 
             _logger.Log($"✅ Password changed for user: {username}");
             return (true, "Password changed successfully");
@@ -202,6 +195,7 @@ namespace SharpPress.Services
             user.PasswordResetTokenExpiry = DateTime.MinValue;
 
             await _featherDatabase.SaveData(user);
+            InvalidateUserCache(user.Username);
             _logger.Log($"✅ Password reset successfully for user: {user.Email}");
             return (true, "Your password has been reset successfully. You can now log in.");
         }
@@ -226,6 +220,7 @@ namespace SharpPress.Services
             }
 
             await _featherDatabase.SaveData(user);
+            InvalidateUserCache(username);
             _logger.Log($"✅ Profile updated for user: {username}");
             return (true, "Profile updated successfully");
         }
@@ -244,6 +239,7 @@ namespace SharpPress.Services
                 return (false, "Cannot delete admin user");
             }
             await _featherDatabase.Delete<User>(user.Id);
+            InvalidateUserCache(username);
 
             _logger.Log($"✅ User deleted: {username}");
             return (true, "User deleted successfully");
@@ -281,21 +277,21 @@ namespace SharpPress.Services
             return (true, "Logout successful");
         }
 
-        public async Task<(bool success, string message)> EnableTwoFactorAsync(string username)
+        public async Task<(bool success, string message, string secret)> EnableTwoFactorAsync(string username)
         {
             var user = await _featherDatabase.GetByColumn<User>("Username", username);
 
             if (user == null)
             {
-                return (false, "User not found");
+                return (false, "User not found", "");
             }
 
-            user.TwoFactorSecret = Guid.NewGuid().ToString();
+            user.TwoFactorSecret = _authService.GenerateTwoFactorSecret();
             user.TwoFactorEnabled = true;
             _featherDatabase.SaveData(user);
 
             _logger.Log($"✅ 2FA enabled for user: {username}");
-            return (true, "Two-factor authentication enabled");
+            return (true, "Two-factor authentication enabled", user.TwoFactorSecret);
         }
 
         public async Task<(bool success, string message)> DisableTwoFactorAsync(string username)
@@ -329,7 +325,7 @@ namespace SharpPress.Services
                 return (false, "Two-factor authentication is not enabled");
             }
 
-            if (code != "123456")
+            if (!_authService.VerifyTotpCode(user.TwoFactorSecret, code))
             {
                 return (false, "Invalid verification code");
             }
@@ -338,9 +334,10 @@ namespace SharpPress.Services
             return (true, "Two-factor authentication verified");
         }
 
-        public async Task<List<User>> GetUsersByRole(string role)
+        public async Task<List<User>> GetUsersByRole(UserRole role)
         {
-            return await _featherDatabase.GetListByColumn<User>("Role", role);
+            var users = await _featherDatabase.GetAll<User>();
+            return users.Where(u => u.HasAnyRole(role)).ToList();
         }
 
         public async Task<(bool success, string message)> ChangeUserRoleAsync(string username, UserRole newRole)
@@ -363,6 +360,7 @@ namespace SharpPress.Services
 
             user.Roles = newRole;
             await _featherDatabase.SaveData(user);
+            InvalidateUserCache(username);
 
             _logger.Log($"✅ Role changed for user {username} to {newRole}");
             return (true, "Role changed successfully");
@@ -379,6 +377,7 @@ namespace SharpPress.Services
 
             user.LockedUntil = DateTime.UtcNow.AddMinutes(lockDurationMinutes);
             await _featherDatabase.SaveData(user);
+            InvalidateUserCache(username);
 
             _logger.Log($"🔒 User locked: {username} until {user.LockedUntil}");
             return (true, $"User locked for {lockDurationMinutes} minutes");
@@ -398,6 +397,7 @@ namespace SharpPress.Services
 
             _authService.ResetFailedLoginAttempts(username);
             await _featherDatabase.SaveData(user);
+            InvalidateUserCache(username);
 
             _logger.Log($"🔓 User unlocked: {username}");
             return (true, "User unlocked successfully");

@@ -18,7 +18,6 @@ namespace SharpPress.Services
         private readonly IServiceProvider _serviceProvider;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAdminMenuService _adminMenuService;
-        private readonly IActionDescriptorCollectionProvider _actionDescriptorProvider;
         private readonly PluginActionDescriptorChangeProvider _changeProvider;
         private readonly PluginStateService _pluginStateService;
 
@@ -53,7 +52,6 @@ namespace SharpPress.Services
             _serviceProvider = serviceProvider;
             _scopeFactory = scopeFactory;
             _adminMenuService = adminMenuService;
-            _actionDescriptorProvider = serviceProvider.GetRequiredService<IActionDescriptorCollectionProvider>();
             _changeProvider = changeProvider;
             _pluginStateService = pluginStateService;
         }
@@ -153,7 +151,6 @@ namespace SharpPress.Services
                     {
                         RegisterApplicationPart(assembly);
                         _changeProvider.NotifyChange();
-                        InvalidateActionDescriptorCache();
                         await plugin.OnLoadAsync(new PluginContext(_logger, _scopeFactory, _serviceProvider, _adminMenuService, plugin.Name));
                     }
 
@@ -348,7 +345,6 @@ namespace SharpPress.Services
                 _logger.LogError($"Plugin onload error: {ex}");
             }
 
-            InvalidateActionDescriptorCache();
             _logger.Log($"✅ Plugin enabled and routes added: {pluginName}");
             return true;
         }
@@ -403,7 +399,6 @@ namespace SharpPress.Services
                 }
             }
 
-            InvalidateActionDescriptorCache();
             _logger.Log($"🔇 Plugin disabled and unloaded: {pluginName}");
             return true;
         }
@@ -450,15 +445,6 @@ namespace SharpPress.Services
             }
         }
 
-        private void InvalidateActionDescriptorCache()
-        {
-            if (_actionDescriptorProvider is ActionDescriptorCollectionProvider provider)
-            {
-                var field = typeof(ActionDescriptorCollectionProvider)
-                    .GetField("_actionDescriptors", BindingFlags.NonPublic | BindingFlags.Instance);
-                field?.SetValue(provider, null);
-            }
-        }
     }
 
     public class PluginLoadContext : AssemblyLoadContext

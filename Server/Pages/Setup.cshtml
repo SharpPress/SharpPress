@@ -1,0 +1,319 @@
+﻿@page "/setup"
+@model SharpPress.Pages.SetupModel
+@{
+    ViewData["Title"] = "Setup";
+}
+
+<style>
+    html, body {
+        background: #070b1a !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .auth-wrapper {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        background: #070b1a !important;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    .auth-bg-orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(120px);
+        opacity: 0.35;
+        pointer-events: none;
+    }
+
+    .orb-1 {
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, #1a3a7a, transparent 70%);
+        top: -10%;
+        left: -5%;
+        animation: orbFloat1 12s ease-in-out infinite;
+    }
+
+    .orb-2 {
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, #0d2860, transparent 70%);
+        bottom: -15%;
+        right: -8%;
+        animation: orbFloat2 15s ease-in-out infinite;
+    }
+
+    .orb-3 {
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, #1e4a8e, transparent 70%);
+        top: 50%;
+        left: 60%;
+        animation: orbFloat3 10s ease-in-out infinite;
+    }
+
+    @@keyframes orbFloat1 {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(40px, 30px) scale(1.1); }
+    }
+
+    @@keyframes orbFloat2 {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(-30px, -40px) scale(1.15); }
+    }
+
+    @@keyframes orbFloat3 {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(-20px, 20px) scale(0.9); }
+    }
+
+    .bg-acrylic {
+        background: rgba(12, 20, 45, 0.75) !important;
+        backdrop-filter: blur(40px) saturate(1.4);
+        -webkit-backdrop-filter: blur(40px) saturate(1.4);
+        border: 1px solid rgba(50, 90, 180, 0.15);
+        box-shadow: 0 8px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(30, 70, 160, 0.08) inset, 0 1px 0 rgba(100, 150, 255, 0.06) inset;
+    }
+
+    .setup-card {
+        width: 100%;
+        max-width: 480px;
+        margin: 24px;
+        padding: 36px 32px 32px;
+        border-radius: 20px;
+        position: relative;
+        z-index: 1;
+    }
+
+        .setup-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 20%;
+            right: 20%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(80, 140, 255, 0.2), transparent);
+            border-radius: 20px 20px 0 0;
+        }
+
+    .auth-header-text {
+        text-align: center;
+        margin-bottom: 28px;
+    }
+
+        .auth-header-text .setup-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6ee09a;
+            background: rgba(16, 70, 40, 0.5);
+            border: 1px solid rgba(34, 160, 80, 0.25);
+            padding: 4px 12px;
+            border-radius: 999px;
+            margin-bottom: 14px;
+        }
+
+        .auth-header-text h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #e8eeff;
+            margin: 0 0 6px;
+            letter-spacing: -0.3px;
+        }
+
+        .auth-header-text p {
+            font-size: 14px;
+            color: rgba(160, 185, 240, 0.55);
+            margin: 0;
+        }
+
+    .alert {
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        margin-bottom: 20px;
+        line-height: 1.5;
+    }
+
+    .alert-fluent-danger {
+        background: rgba(80, 20, 20, 0.5) !important;
+        border: 1px solid rgba(220, 60, 60, 0.25);
+        color: #ff7b7b !important;
+    }
+
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(180, 200, 255, 0.75);
+        letter-spacing: 0.2px;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 11px 14px;
+        background: rgba(15, 25, 55, 0.6) !important;
+        border: 1px solid rgba(50, 85, 170, 0.2) !important;
+        border-radius: 10px;
+        color: #d8e2ff !important;
+        font-size: 14px;
+        outline: none;
+        transition: all 0.25s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) inset;
+    }
+
+        .form-input::placeholder {
+            color: rgba(120, 150, 210, 0.35) !important;
+        }
+
+        .form-input:focus {
+            border-color: rgba(60, 120, 220, 0.5) !important;
+            background: rgba(15, 25, 60, 0.8) !important;
+            box-shadow: 0 0 0 3px rgba(50, 100, 200, 0.12), 0 1px 3px rgba(0, 0, 0, 0.2) inset;
+        }
+
+    textarea.form-input {
+        resize: vertical;
+        min-height: 70px;
+    }
+
+    .text-danger {
+        font-size: 12.5px;
+        color: #ff6b6b !important;
+    }
+
+    .form-section {
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: rgba(140, 170, 230, 0.45);
+        margin-top: 6px;
+    }
+
+    .btn-submit {
+        width: 100%;
+        padding: 12px;
+        border: none !important;
+        border-radius: 10px;
+        font-size: 14.5px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 4px;
+    }
+
+    .fluent-cta {
+        background: linear-gradient(135deg, #1a4fbf, #3366dd) !important;
+        color: #e8eeff !important;
+        box-shadow: 0 4px 20px rgba(30, 80, 200, 0.3), 0 1px 0 rgba(100, 160, 255, 0.15) inset;
+    }
+
+        .fluent-cta:hover {
+            background: linear-gradient(135deg, #2258d4, #3d73ea) !important;
+            box-shadow: 0 6px 28px rgba(30, 80, 200, 0.4), 0 1px 0 rgba(100, 160, 255, 0.2) inset;
+            transform: translateY(-1px);
+        }
+
+        .fluent-cta:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 12px rgba(30, 80, 200, 0.25);
+        }
+</style>
+
+<div class="auth-wrapper">
+    <div class="auth-bg-orb orb-1"></div>
+    <div class="auth-bg-orb orb-2"></div>
+    <div class="auth-bg-orb orb-3"></div>
+    <div class="setup-card bg-acrylic">
+
+        <div class="auth-header-text">
+            <span class="setup-badge">🚀 First run</span>
+            <h2>Welcome to SharpPress</h2>
+            <p>Create your admin account and name your site to get started</p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="alert alert-fluent-danger">@Model.ErrorMessage</div>
+        }
+
+        <form method="post" class="auth-form">
+            @Html.AntiForgeryToken()
+
+            <div class="form-section">Your site</div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Input.SiteName"></label>
+                <div class="input-wrapper">
+                    <input asp-for="Input.SiteName" class="form-input" placeholder="My Awesome Blog" required autofocus />
+                </div>
+                <span asp-validation-for="Input.SiteName" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Input.SiteDescription"></label>
+                <div class="input-wrapper">
+                    <textarea asp-for="Input.SiteDescription" class="form-input" placeholder="A few words about what this site is"></textarea>
+                </div>
+                <span asp-validation-for="Input.SiteDescription" class="text-danger"></span>
+            </div>
+
+            <div class="form-section">Admin account</div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Input.Username"></label>
+                <div class="input-wrapper">
+                    <input asp-for="Input.Username" class="form-input" placeholder="admin" required autocomplete="username" />
+                </div>
+                <span asp-validation-for="Input.Username" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Input.Email"></label>
+                <div class="input-wrapper">
+                    <input asp-for="Input.Email" class="form-input" placeholder="admin@example.com" required autocomplete="email" />
+                </div>
+                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Input.Password"></label>
+                <div class="input-wrapper">
+                    <input asp-for="Input.Password" class="form-input" placeholder="••••••••" required autocomplete="new-password" />
+                </div>
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Input.ConfirmPassword"></label>
+                <div class="input-wrapper">
+                    <input asp-for="Input.ConfirmPassword" class="form-input" placeholder="••••••••" required autocomplete="new-password" />
+                </div>
+                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn-submit fluent-btn fluent-cta">
+                Finish setup
+            </button>
+        </form>
+    </div>
+</div>

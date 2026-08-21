@@ -23,6 +23,9 @@ namespace SharpPress.Services
         private readonly Task _flushTask;
         private volatile bool _disposed;
 
+        private const long MaxLogSizeBytes = 10 * 1024 * 1024;
+        private const int MaxArchives = 10;
+
         public Logger(string logsFolder = "logs", TimeSpan? flushInterval = null, int maxBatchSize = 50)
         {
             _logsFolder = logsFolder;
@@ -53,6 +56,8 @@ namespace SharpPress.Services
 
                         File.Delete(_logFile);
                     }
+
+                    PruneOldArchives();
                 }
                 catch (Exception ex)
                 {
@@ -117,8 +122,49 @@ namespace SharpPress.Services
             {
                 lock (_logLock)
                 {
+                    RotateIfNeeded();
                     File.AppendAllText(_logFile, batch.ToString());
                 }
+            }
+        }
+
+        private void RotateIfNeeded()
+        {
+            try
+            {
+                if (!File.Exists(_logFile))
+                    return;
+
+                if (new FileInfo(_logFile).Length < MaxLogSizeBytes)
+                    return;
+
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+                string zipFile = Path.Combine(_logsFolder, $"latest_{timestamp}.zip");
+
+                using (var archive = ZipFile.Open(zipFile, ZipArchiveMode.Create))
+                {
+                    archive.CreateEntryFromFile(_logFile, "latest.log");
+                }
+
+                File.Delete(_logFile);
+                PruneOldArchives();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Logger] Rotation error: {ex.Message}");
+            }
+        }
+
+        private void PruneOldArchives()
+        {
+            var archives = Directory.GetFiles(_logsFolder, "latest_*.zip")
+                .Select(f => new FileInfo(f))
+                .OrderBy(f => f.CreationTimeUtc)
+                .ToList();
+
+            for (int i = 0; i < archives.Count - MaxArchives; i++)
+            {
+                archives[i].Delete();
             }
         }
 
