@@ -100,25 +100,46 @@ jobs:
           path: |
             Server/server.log
             Server/tunnel.log
+            Server/ngrok.log
           if-no-files-found: ignore
 
       - name: Start public tunnel
         if: ${{ inputs.keep_running }}
+        env:
+          NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
+          NGROK_DOMAIN: ${{ vars.NGROK_DOMAIN }}
         working-directory: Server
         run: |
-          nohup ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 80:127.0.0.1:8080 nokey@localhost.run > tunnel.log 2>&1 &
-          for i in $(seq 1 30); do
-            url=$(grep -oE 'https://[a-z0-9.-]+\.(lhr\.life|localhost\.run)' tunnel.log | head -1)
-            if [ -n "$url" ]; then
-              echo "$url" >> "$GITHUB_STEP_SUMMARY"
-              echo "public url: $url"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "tunnel never came up"
-          cat tunnel.log
-          exit 1
+          url=""
+
+          if [ -n "$NGROK_AUTHTOKEN" ]; then
+            curl -sL -o ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip
+            unzip -q ngrok.zip
+            nohup ./ngrok http 8080 --log stdout --authtoken "$NGROK_AUTHTOKEN" ${NGROK_DOMAIN:+--domain=$NGROK_DOMAIN} > ngrok.log 2>&1 &
+            for i in $(seq 1 30); do
+              url=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -oE '"public_url":"https://[^"]+"' | cut -d'"' -f4 | head -1)
+              if [ -n "$url" ]; then break; fi
+              sleep 2
+            done
+          fi
+
+          if [ -z "$url" ]; then
+            nohup ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -p 443 -R0:127.0.0.1:8080 a@free.pinggy.io > tunnel.log 2>&1 &
+            for i in $(seq 1 30); do
+              url=$(grep -oE 'https://[a-zA-Z0-9.-]+\.pinggy\.io' tunnel.log | head -1)
+              if [ -n "$url" ]; then break; fi
+              sleep 2
+            done
+          fi
+
+          if [ -z "$url" ]; then
+            echo "no tunnel came up"
+            cat ngrok.log tunnel.log 2>/dev/null
+            exit 1
+          fi
+
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
+          echo "public url: $url"
 
       - name: Keep running until cancelled
         if: ${{ inputs.keep_running }}
