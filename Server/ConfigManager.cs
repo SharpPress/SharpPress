@@ -31,6 +31,9 @@ namespace SharpPress.Services
                 {
                     string json = File.ReadAllText(_configFile);
                     Config = JsonConvert.DeserializeObject<ServerConfig>(json) ?? new ServerConfig();
+
+                    if (!json.Contains("\"SetupStep\""))
+                        Config.SetupStep = 4;
                 }
                 else
                 {

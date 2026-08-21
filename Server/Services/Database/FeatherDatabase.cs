@@ -27,7 +27,7 @@ namespace SharpPress.Services.Database
     public sealed class FeatherDatabase
     {
         private readonly FeatherDatabaseOptions _options;
-        private readonly string _connectionString;
+        private string _connectionString;
         private readonly ILogger<FeatherDatabase> _logger;
         private readonly CancellationToken _globalCancellationToken;
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _propertyCache = new();
@@ -58,60 +58,72 @@ namespace SharpPress.Services.Database
                 DebugMode = false
             } : databaseOptions;
 
+            _connectionString = "";
+
             try
             {
-                var serverBuilder = new MySqlConnectionStringBuilder
-                {
-                    Server = mySQL_Config.host,
-                    Port = (uint)mySQL_Config.port,
-                    UserID = mySQL_Config.database_username,
-                    Password = mySQL_Config.database_password,
-                    SslMode = MySqlSslMode.Preferred,
-                    Pooling = false,
-                    ConnectionTimeout = 5,
-                    DefaultCommandTimeout = 30,
-                    AllowUserVariables = false
-                };
-
-                using (var serverConnection = new MySqlConnection(serverBuilder.ConnectionString))
-                {
-                    serverConnection.Open();
-                    using var cmd = serverConnection.CreateCommand();
-                    cmd.CommandText =
-                        $"CREATE DATABASE IF NOT EXISTS `{mySQL_Config.database_name}` " +
-                        "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
-                    cmd.ExecuteNonQuery();
-                }
-
-                var builder = new MySqlConnectionStringBuilder
-                {
-                    Server = mySQL_Config.host,
-                    Port = (uint)mySQL_Config.port,
-                    Database = mySQL_Config.database_name,
-                    UserID = mySQL_Config.database_username,
-                    Password = mySQL_Config.database_password,
-                    SslMode = MySqlSslMode.Preferred,
-                    Pooling = true,
-                    MinimumPoolSize = 0,
-                    MaximumPoolSize = 100,
-                    ConnectionTimeout = 10,
-                    DefaultCommandTimeout = 30,
-                    AllowUserVariables = false
-                };
-
-                _connectionString = builder.ConnectionString;
-
-                using var connection = new MySqlConnection(_connectionString);
-                connection.Open();
-
-                _logger.LogInformation("FeatherDatabase connected to MySQL {Host}:{Port}/{Database}",
-                    mySQL_Config.host, mySQL_Config.port, mySQL_Config.database_name);
+                Connect(mySQL_Config);
             }
             catch (Exception ex)
             {
-                _logger.LogCritical(ex, "Failed to initialise FeatherDatabase");
-                throw;
+                _logger.LogCritical(ex, "Failed to initialise FeatherDatabase, run /setup to configure it");
             }
+        }
+
+        public bool IsConfigured => !string.IsNullOrEmpty(_connectionString);
+
+        public void Configure(MySQL_Config mySQL_Config)
+        {
+            Connect(mySQL_Config);
+            _logger.LogInformation("FeatherDatabase connected to MySQL {Host}:{Port}/{Database}",
+                mySQL_Config.host, mySQL_Config.port, mySQL_Config.database_name);
+        }
+
+        private void Connect(MySQL_Config mySQL_Config)
+        {
+            var serverBuilder = new MySqlConnectionStringBuilder
+            {
+                Server = mySQL_Config.host,
+                Port = (uint)mySQL_Config.port,
+                UserID = mySQL_Config.database_username,
+                Password = mySQL_Config.database_password,
+                SslMode = MySqlSslMode.Preferred,
+                Pooling = false,
+                ConnectionTimeout = 5,
+                DefaultCommandTimeout = 30,
+                AllowUserVariables = false
+            };
+
+            using (var serverConnection = new MySqlConnection(serverBuilder.ConnectionString))
+            {
+                serverConnection.Open();
+                using var cmd = serverConnection.CreateCommand();
+                cmd.CommandText =
+                    $"CREATE DATABASE IF NOT EXISTS `{mySQL_Config.database_name}` " +
+                    "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+                cmd.ExecuteNonQuery();
+            }
+
+            var builder = new MySqlConnectionStringBuilder
+            {
+                Server = mySQL_Config.host,
+                Port = (uint)mySQL_Config.port,
+                Database = mySQL_Config.database_name,
+                UserID = mySQL_Config.database_username,
+                Password = mySQL_Config.database_password,
+                SslMode = MySqlSslMode.Preferred,
+                Pooling = true,
+                MinimumPoolSize = 0,
+                MaximumPoolSize = 100,
+                ConnectionTimeout = 10,
+                DefaultCommandTimeout = 30,
+                AllowUserVariables = false
+            };
+
+            _connectionString = builder.ConnectionString;
+
+            using var connection = new MySqlConnection(_connectionString);
+            connection.Open();
         }
 
         /// <summary>

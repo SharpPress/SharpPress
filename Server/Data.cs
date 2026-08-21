@@ -148,6 +148,7 @@ namespace SharpPress.Models
     {
         public bool DebugMode { get; set; } = false;
         public string JwtSecret { get; set; } = "";
+        public int SetupStep { get; set; } = 1;
         public SiteSettings SiteSettings { get; set; } = new SiteSettings();
         public string PanelDomain { get; set; } = "example.com";
         public int MaxFailedLoginAttempts { get; set; } = 5;

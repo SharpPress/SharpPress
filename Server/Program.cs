@@ -127,7 +127,6 @@ namespace SharpPress
             builder.Services.AddSingleton<IActionDescriptorChangeProvider>(sp => sp.GetRequiredService<PluginActionDescriptorChangeProvider>());
             builder.Services.AddSingleton<Services.EventHandler>();
             builder.Services.AddSingleton(provider => new FeatherDatabase(loggerAdapter, provider.GetRequiredService<ConfigManager>().Config.MySQL_Config));
-            builder.Services.AddSingleton<SetupGate>();
             builder.Services.AddSingleton<UserService>();
             builder.Services.AddSingleton<WebSocketServer>();
             builder.Services.AddSingleton<ValidationService>();
@@ -257,29 +256,36 @@ namespace SharpPress
                 }
             });
 
-            await PrepareDatabase(serviceProvider.GetRequiredService<FeatherDatabase>());
+            await PrepareDatabase(serviceProvider.GetRequiredService<FeatherDatabase>(), logger);
             await app.RunAsync();
         }
 
-        private static async Task PrepareDatabase(FeatherDatabase database)
+        public static async Task PrepareDatabase(FeatherDatabase database, Logger logger)
         {
-            await database.CreateTable<User>();
-            await database.CreateIndex<User>("Username");
-            await database.CreateIndex<User>("UUID");
-            await database.CreateTable<Post>();
-            await database.CreateIndex<Post>("Slug");
-            await database.CreateTable<Category>();
-            await database.CreateIndex<Category>("Slug");
-            await database.CreateTable<Tag>();
-            await database.CreateIndex<Tag>("Slug");
-            await database.CreateTable<PostCategory>();
-            await database.CreateIndex<PostCategory>("PostId");
-            await database.CreateIndex<PostCategory>("CategoryId");
-            await database.CreateTable<PostTag>();
-            await database.CreateIndex<PostTag>("PostId");
-            await database.CreateIndex<PostTag>("TagId");
-            await database.CreateTable<MediaItem>();
-            await database.CreateIndex<MediaItem>("MediaType");
+            try
+            {
+                await database.CreateTable<User>();
+                await database.CreateIndex<User>("Username");
+                await database.CreateIndex<User>("UUID");
+                await database.CreateTable<Post>();
+                await database.CreateIndex<Post>("Slug");
+                await database.CreateTable<Category>();
+                await database.CreateIndex<Category>("Slug");
+                await database.CreateTable<Tag>();
+                await database.CreateIndex<Tag>("Slug");
+                await database.CreateTable<PostCategory>();
+                await database.CreateIndex<PostCategory>("PostId");
+                await database.CreateIndex<PostCategory>("CategoryId");
+                await database.CreateTable<PostTag>();
+                await database.CreateIndex<PostTag>("PostId");
+                await database.CreateIndex<PostTag>("TagId");
+                await database.CreateTable<MediaItem>();
+                await database.CreateIndex<MediaItem>("MediaType");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"Tables were not created, database unreachable: {ex.Message}");
+            }
         }
 
         private static async Task ShutdownApplication(IServiceProvider serviceProvider, Logger logger)

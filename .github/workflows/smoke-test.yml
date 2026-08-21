@@ -45,6 +45,7 @@ jobs:
         run: |
           cat > config.json <<'EOF'
           {
+            "SetupStep": 2,
             "MySQL_Config": {
               "host": "127.0.0.1",
               "port": 3306,
@@ -108,26 +109,41 @@ jobs:
 
           curl -s -c /tmp/jar http://127.0.0.1:8080/setup -o /tmp/setup.html
           token=$(grep '__RequestVerificationToken' /tmp/setup.html | grep -oE 'value="[^"]+"' | head -1 | cut -d'"' -f2)
+
           code=$(curl -s -b /tmp/jar -o /tmp/done.html -w "%{http_code}" \
-            --data-urlencode "Input.SiteName=SharpPress" \
-            --data-urlencode "Input.SiteDescription=ci run" \
-            --data-urlencode "Input.Username=admin" \
-            --data-urlencode "Input.Email=admin@example.com" \
-            --data-urlencode "Input.Password=Admin123!x" \
-            --data-urlencode "Input.ConfirmPassword=Admin123!x" \
+            --data-urlencode "Step2.SiteName=SharpPress" \
+            --data-urlencode "Step2.SiteDescription=ci run" \
+            --data-urlencode "Step2.Username=admin" \
+            --data-urlencode "Step2.Email=admin@example.com" \
+            --data-urlencode "Step2.Password=Admin123!x" \
+            --data-urlencode "Step2.ConfirmPassword=Admin123!x" \
             --data-urlencode "__RequestVerificationToken=$token" \
-            http://127.0.0.1:8080/setup)
+            "http://127.0.0.1:8080/setup?handler=Step2")
           if [ "$code" != "302" ]; then
-            echo "setup post returned $code"
+            echo "setup step 2 returned $code"
             cat /tmp/done.html
             exit 1
           fi
-          echo "ok setup"
+          echo "ok setup step 2"
+
+          code=$(curl -s -b /tmp/jar -o /tmp/done.html -w "%{http_code}" \
+            --data-urlencode "Step3.SiteUrl=http://127.0.0.1:8080" \
+            --data-urlencode "Step3.Timezone=UTC" \
+            --data-urlencode "Step3.AllowRegistration=false" \
+            --data-urlencode "Step3.ForceHttps=false" \
+            --data-urlencode "__RequestVerificationToken=$token" \
+            "http://127.0.0.1:8080/setup?handler=Step3")
+          if [ "$code" != "302" ]; then
+            echo "setup step 3 returned $code"
+            cat /tmp/done.html
+            exit 1
+          fi
+          echo "ok setup step 3"
 
           check /Login
           check /rss.xml "<rss"
           check /sitemap.xml "<urlset"
-          check /robots.txt sitemap
+          check /robots.txt "127.0.0.1:8080"
 
       - name: Server log
         if: always()
