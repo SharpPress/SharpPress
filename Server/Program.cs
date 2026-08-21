@@ -108,7 +108,8 @@ namespace SharpPress
             });
 
             builder.Services.AddMemoryCache();
-            builder.Services.AddHealthChecks();
+            builder.Services.AddHealthChecks()
+                .AddCheck<DatabaseHealthCheck>("mysql", timeout: TimeSpan.FromSeconds(5));
             builder.Services.Configure<HostOptions>(options =>
             {
                 options.ShutdownTimeout = TimeSpan.FromSeconds(30);

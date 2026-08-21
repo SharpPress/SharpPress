@@ -1,60 +1,54 @@
 # SharpPress
 
-A plugin-first CMS built with C# / .NET 8. Think WordPress but for people who like C# and don't want to fight EF Core migrations.
+A plugin-first CMS built with C# / .NET 8. No EF Core, no migrations, no magic.
 
-It gives you an admin panel out of the box (posts, users, media, the usual), but every piece of it can be swapped or extended with plugins. Drop a DLL in the `plugins` folder and it just loads — no restart needed.
+Admin panel included (posts, users, media). Everything is extensible via plugins — drop a DLL in `plugins/` and it loads without a restart.
 
-## Why this exists
+## What it is
 
-I wanted something that felt like a normal CMS to use, but where I could actually hack on the internals without fighting the framework. So: MySQL for storage, a powerful custom ORM that builds tables from your C# classes automatically, JWT + cookie auth, and a plugin system that hot-loads DLLs into isolated contexts so they don't step on each other's dependencies.
+MySQL for storage. A custom ORM that builds tables from C# classes. JWT + cookie auth. A plugin system that hot-loads DLLs into isolated `AssemblyLoadContext`s.
 
-## What it can do
+## Features
 
-- **Posts, pages, blog stuff** — categories, tags, scheduled publishing, slugs like `/blog/my-post`
-- **Users** — JWT + cookies, 2FA, roles (User/Mod/Support/Admin), auto lockout after too many failed logins
-- **Media** — upload images/video/audio/docs, auto thumbnails, safe file paths
-- **Plugins** — hot-loaded, run in their own `AssemblyLoadContext`, can be turned on/off without restarting the server
-- **Real-time stuff** — WebSocket server + an event bus so plugins can react to things happening in the system
-- **The boring important stuff** — gzip compression, in-memory caching, health check endpoint, graceful shutdown
+- Posts, pages, categories, tags, scheduled publishing
+- Users: JWT + cookies, TOTP 2FA, roles (User/Mod/Support/Admin), login lockout
+- Media uploads with auto thumbnails
+- Hot-loaded plugins, enable/disable without restart
+- Event bus, WebSocket server
+- RSS, sitemap.xml, robots.txt
 
-## Getting it running
+## Requirements
 
-You need .NET 8 SDK and MySQL 8.
+.NET 8 SDK, MySQL 8.
+
+## Installation
 
 ```bash
 git clone https://github.com/your-username/SharpPress.git
 cd SharpPress/Server
 dotnet restore
 dotnet build
-```
-
-Edit `config.json` (it generates itself on first run) and drop in your MySQL details:
-
-```json
-{
-  "MySQL_Config": {
-    "host": "localhost",
-    "port": 3306,
-    "database_name": "sharppress",
-    "database_username": "root",
-    "database_password": "your_password"
-  }
-}
-```
-
-Then just run it:
-
-```bash
 dotnet run
 ```
 
-Defaults to `http://localhost:12001`. Admin panel is at `/Admin`.
+Runs on `http://localhost:12001` by default (override with `HTTP_PORT`).
 
-First time it boots, it'll set up all the MySQL tables and folders on its own — no manual schema work needed.
+Tables are created on first boot. Then go to `/setup` to create the admin account. No default credentials exist.
+
+## Security
+
+- Passwords: PBKDF2-SHA256, 210k iterations, random salt per user
+- JWT secret generated on first boot, stored in `config.json`
+- Auth cookies HttpOnly/Secure
+- Raw queries restricted to SELECT; DROP/DELETE/TRUNCATE blocked at the ORM level
+- Path traversal checks on file operations
+- User HTML sanitized before storage
+
+Report security issues via [SECURITY.md](SECURITY.md), not publicly.
 
 ## Writing a plugin
 
-Plugins are just class libraries that implement `IPlugin`:
+Plugins are class libraries implementing `IPlugin`:
 
 ```csharp
 public class MyPlugin : IPlugin
@@ -70,11 +64,11 @@ public class MyPlugin : IPlugin
 }
 ```
 
-Build it, drop the DLL in `plugins/`, done. Check `SamplePlugin.cs` in the repo root if you want a working example to start from.
+Build, drop the DLL in `plugins/`. See `SamplePlugin.cs` for a working example.
 
-## Deploying
+## Deployment
 
-Run it behind Nginx with SSL termination (sample config's in `Nginx Configuration.txt`), or just set it up as a systemd service:
+Behind Nginx with SSL termination (sample config in `Nginx Configuration.txt`) or as a systemd service:
 
 ```bash
 dotnet publish -c Release -o /opt/sharppress
@@ -96,12 +90,6 @@ Environment=ASPNETCORE_ENVIRONMENT=Production
 [Install]
 WantedBy=multi-user.target
 ```
-
-## Security notes
-
-Passwords are hashed with PBKDF2 (10k iterations, random salt per user). Auth cookies are HttpOnly/Secure. User HTML gets sanitized before it's stored. File paths are checked for traversal attempts. Destructive SQL (DROP/DELETE/TRUNCATE) is blocked at the ORM level — only SELECT is allowed through raw queries.
-
-Found a security issue? Check [SECURITY.md](SECURITY.md) before posting it publicly.
 
 ## License
 
