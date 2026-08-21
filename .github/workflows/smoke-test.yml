@@ -1,0 +1,100 @@
+name: Smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep_running:
+        description: 'Keep the instance alive until you cancel the run'
+        type: boolean
+        default: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sharppress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+
+      - name: Build
+        run: dotnet build Server/SharpPress.csproj -c Release --nologo
+
+      - name: Write config
+        working-directory: Server
+        run: |
+          cat > config.json <<'EOF'
+          {
+            "MySQL_Config": {
+              "host": "127.0.0.1",
+              "port": 3306,
+              "database_name": "sharppress",
+              "database_username": "root",
+              "database_password": "root"
+            }
+          }
+          EOF
+
+      - name: Start server
+        working-directory: Server
+        run: |
+          HTTP_PORT=8080 nohup dotnet bin/Release/net8.0/SharpPress.dll > server.log 2>&1 &
+          echo $! > server.pid
+
+      - name: Wait for healthy
+        working-directory: Server
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8080/health > /dev/null; then
+              echo "healthy after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "server never became healthy"
+          exit 1
+
+      - name: Smoke checks
+        run: |
+          check() {
+            curl -sf "http://127.0.0.1:8080$1" > /tmp/body || { echo "$1 did not answer"; exit 1; }
+            if [ -n "$2" ] && ! grep -qi "$2" /tmp/body; then
+              echo "$1 did not contain '$2'"
+              exit 1
+            fi
+            echo "ok $1"
+          }
+          check /health Healthy
+          check /setup
+          check /Login
+          check /rss.xml "<rss"
+          check /sitemap.xml "<urlset"
+          check /robots.txt sitemap
+
+      - name: Server log
+        if: always()
+        working-directory: Server
+        run: cat server.log
+
+      - name: Keep running until cancelled
+        if: ${{ inputs.keep_running }}
+        working-directory: Server
+        run: |
+          echo "instance is up on port 8080, cancel this run when you are done"
+          tail -f server.log
