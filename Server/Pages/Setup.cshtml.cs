@@ -78,7 +78,7 @@ namespace SharpPress.Pages
             config.MySQL_Config.port = Step1.Port;
             config.MySQL_Config.database_name = Step1.Database.Trim();
             config.MySQL_Config.database_username = Step1.Username.Trim();
-            config.MySQL_Config.database_password = Step1.Password;
+            config.MySQL_Config.database_password = Step1.Password ?? "";
 
             try
             {
@@ -254,7 +254,7 @@ namespace SharpPress.Pages
             public string Username { get; set; } = "root";
 
             [DataType(DataType.Password)]
-            public string Password { get; set; } = "";
+            public string? Password { get; set; }
         }
 
         public class AdminInput
