@@ -1,3 +1,4 @@
+using SharpPress.Services;
 using SharpPress.Models;
 using SharpPress.Services.General;
 
@@ -12,7 +13,7 @@ namespace SharpPress.Middlewares
             _next = next;
         }
 
-        public async Task InvokeAsync(HttpContext context, PostService postService, TaxonomyService taxonomyService)
+        public async Task InvokeAsync(HttpContext context, IPostService postService, ITaxonomyService taxonomyService)
         {
             var path = context.Request.Path.Value;
 

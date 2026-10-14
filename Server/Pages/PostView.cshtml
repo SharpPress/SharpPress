@@ -1,5 +1,6 @@
 @page "/PostView"
 @model SharpPress.Pages.PostViewModel
+@inject SharpPress.Services.IFilterPipeline Filters
 @{
     Layout = null;
     ViewData["Title"] = Model.Post?.Title ?? "Post";
@@ -253,6 +254,7 @@
             }
         }
     </style>
+    @Html.Raw(Filters.Apply(SharpPress.Services.FilterKeys.PageHead, ""))
 </head>
 <body>
     @if (Model.Post != null)
@@ -273,10 +275,10 @@
                             <span>by <span class="author">@Model.Post.AuthorUsername</span></span>
                         }
                     </div>
-                    <h1>@Model.Post.Title</h1>
+                    <h1>@Filters.Apply(SharpPress.Services.FilterKeys.PostTitle, Model.Post.Title)</h1>
                     @if (!string.IsNullOrEmpty(Model.Post.Excerpt))
                     {
-                        <p class="post-excerpt">@Model.Post.Excerpt</p>
+                        <p class="post-excerpt">@Filters.Apply(SharpPress.Services.FilterKeys.PostExcerpt, Model.Post.Excerpt)</p>
                     }
                 </header>
 
@@ -286,7 +288,7 @@
                 }
 
                 <div class="post-content">
-                    @Html.Raw(Model.Post.Content)
+                    @Html.Raw(Filters.Apply(SharpPress.Services.FilterKeys.PostContentRender, Model.Post.Content))
                 </div>
 
                 <footer class="post-footer">
@@ -310,5 +312,6 @@
             <a href="/" class="back-link">Go Home</a>
         </div>
     }
+    @Html.Raw(Filters.Apply(SharpPress.Services.FilterKeys.PageFooter, ""))
 </body>
 </html>

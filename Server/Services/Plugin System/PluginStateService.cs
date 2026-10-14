@@ -1,33 +1,42 @@
-﻿using System.Text.Json;
+using SharpPress.Plugins;
+using System.Text.Json;
 
 namespace SharpPress.Services
 {
     public class PluginStateService
     {
+        private readonly object _lock = new();
         private readonly string _statePath;
         private Dictionary<string, bool> _state = new();
 
-        public PluginStateService(string statePath = "plugins/plugin-state.json")
+        public PluginStateService()
         {
-            _statePath = statePath;
+            _statePath = PluginPaths.StateFile;
             Load();
         }
 
         public bool IsEnabled(string pluginName)
         {
-            return !_state.TryGetValue(pluginName, out var enabled) || enabled;
+            lock (_lock)
+                return !_state.TryGetValue(pluginName, out var enabled) || enabled;
         }
 
         public void SetEnabled(string pluginName, bool enabled)
         {
-            _state[pluginName] = enabled;
-            Save();
+            lock (_lock)
+            {
+                _state[pluginName] = enabled;
+                Save();
+            }
         }
 
         public void Remove(string pluginName)
         {
-            _state.Remove(pluginName);
-            Save();
+            lock (_lock)
+            {
+                _state.Remove(pluginName);
+                Save();
+            }
         }
 
         private void Load()
@@ -37,14 +46,7 @@ namespace SharpPress.Services
                 if (!File.Exists(_statePath)) return;
                 var json = File.ReadAllText(_statePath);
                 var deserializedState = JsonSerializer.Deserialize<Dictionary<string, bool>>(json);
-
-                if (deserializedState is null)
-                {
-                    Console.Error.WriteLine($"Plugin state file '{_statePath}' was deserialized as null. Falling back to empty plugin state.");
-                    _state = new();
-                }
-                else
-                    _state = deserializedState;
+                _state = deserializedState ?? new();
             }
             catch (Exception ex)
             {

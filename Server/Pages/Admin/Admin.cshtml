@@ -1,6 +1,7 @@
 ﻿@page "/admin"
 @model SharpPress.Pages.AdminModel
-@inject SharpPress.Services.UserService _userService
+@inject SharpPress.Services.IUserService _userService
+@inject SharpPress.Services.IDashboardService _dashboardService
 @inject SharpPress.Services.PluginManager _pluginManager
 
 @using System.Diagnostics
@@ -344,3 +345,11 @@
         </div>
     }
 </div>
+
+@foreach (var widget in _dashboardService.Widgets)
+{
+    <div class="dashboard-panel" style="margin-top: 1.25rem;">
+        <h3 style="color: var(--text-white); margin-bottom: 0.75rem;">@widget.Title</h3>
+        @Html.Raw(await widget.Render())
+    </div>
+}

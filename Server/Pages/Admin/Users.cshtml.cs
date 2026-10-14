@@ -8,11 +8,11 @@ namespace SharpPress.Pages
 {
     public class UsersModel : PageModel
     {
-        private readonly UserService _userService;
+        private readonly IUserService _userService;
         private readonly FeatherDatabase _database;
         private readonly Logger _logger;
 
-        public UsersModel(UserService userService, FeatherDatabase database, Logger logger)
+        public UsersModel(IUserService userService, FeatherDatabase database, Logger logger)
         {
             _userService = userService;
             _database = database;

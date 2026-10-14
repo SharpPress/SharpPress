@@ -1,17 +1,20 @@
+﻿using SharpPress.Events;
 using SharpPress.Models;
 using SharpPress.Services.Database;
 
 namespace SharpPress.Services.General
 {
-    public class TaxonomyService
+    public class TaxonomyService : ITaxonomyService
     {
         private readonly FeatherDatabase _db;
         private readonly Logger _logger;
+        private readonly IEventBus _eventBus;
 
-        public TaxonomyService(FeatherDatabase db, Logger logger)
+        public TaxonomyService(FeatherDatabase db, Logger logger, IEventBus eventBus)
         {
             _db = db;
             _logger = logger;
+            _eventBus = eventBus;
         }
 
         public async Task<List<Category>> GetAllCategoriesAsync()
@@ -47,6 +50,7 @@ namespace SharpPress.Services.General
             category.CreatedAt = DateTime.UtcNow;
             await _db.SaveData(category);
             _logger.Log($"Category created: {category.Name}");
+            await _eventBus.PublishAsync(new CategoryCreatedEvent(category));
             return category;
         }
 
@@ -73,8 +77,10 @@ namespace SharpPress.Services.General
             foreach (var pc in postCategories)
                 await _db.Delete<PostCategory>(pc.Id);
 
+            var deletedCategory = await _db.GetData<Category>(id);
             await _db.Delete<Category>(id);
             _logger.Log($"Category deleted: ID {id}");
+            await _eventBus.PublishAsync(new CategoryDeletedEvent(id, deletedCategory?.Name ?? ""));
         }
 
         public async Task<List<Category>> GetCategoryHierarchyAsync()
@@ -128,6 +134,7 @@ namespace SharpPress.Services.General
             tag.CreatedAt = DateTime.UtcNow;
             await _db.SaveData(tag);
             _logger.Log($"Tag created: {tag.Name}");
+            await _eventBus.PublishAsync(new TagCreatedEvent(tag));
             return tag;
         }
 
@@ -147,8 +154,10 @@ namespace SharpPress.Services.General
             foreach (var pt in postTags)
                 await _db.Delete<PostTag>(pt.Id);
 
+            var deletedTag = await _db.GetData<Tag>(id);
             await _db.Delete<Tag>(id);
             _logger.Log($"Tag deleted: ID {id}");
+            await _eventBus.PublishAsync(new TagDeletedEvent(id, deletedTag?.Name ?? ""));
         }
 
         public async Task<Tag> GetOrCreateTagByNameAsync(string name)
@@ -190,9 +199,4 @@ namespace SharpPress.Services.General
         }
     }
 
-    public class CategoryNode
-    {
-        public Category Category { get; set; }
-        public List<CategoryNode> Children { get; set; } = new();
-    }
 }

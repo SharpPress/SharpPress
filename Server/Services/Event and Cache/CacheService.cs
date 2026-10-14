@@ -6,7 +6,7 @@ using SharpPress.Services;
 
 namespace SharpPress.Services
 {
-    public class CacheService
+    public class CacheService : ICacheService
     {
         private readonly ConcurrentDictionary<string, CacheItem> _cache = new();
         private readonly ServerConfig _config;

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace SharpPress.Services
 {
-    public class Logger : IDisposable
+    public class Logger : IPluginLogger, IDisposable
     {
         private readonly string _logsFolder;
         private readonly string _logFile;

@@ -257,6 +257,13 @@
         }
 </style>
 
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="card" style="margin-bottom: 1rem; padding: 0.75rem 1rem; border-color: @(Model.StatusIsError ? "var(--danger, #e5534b)" : "var(--success, #3fb950)");">
+        @Model.StatusMessage
+    </div>
+}
+
 <div class="plugins-header">
     <div>
         <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">Plugin Management</h1>
@@ -323,7 +330,11 @@
                 </div>
 
                 <div class="plugin-status">
-                    @if (isEnabled)
+                    @if (!string.IsNullOrEmpty(p.Value.Error))
+                    {
+                        <span style="color: var(--danger, #e5534b);" title="@p.Value.Error">Failed: @p.Value.Error</span>
+                    }
+                    else if (isEnabled)
                     {
                         <span style="color: var(--success);">Active</span>
                     }
@@ -363,6 +374,11 @@
                         }
                     </div>
                 </div>
+
+                <form method="post" asp-page-handler="Remove" onsubmit="return confirm('Remove this plugin and delete its files?');" style="margin-top: 0.5rem;">
+                    <input name="name" value="@p.Value.Name" hidden />
+                    <button class="btn-plugin btn-disable" type="submit">Remove</button>
+                </form>
 
                 <div class="plugin-meta">
                     <div class="meta-item">

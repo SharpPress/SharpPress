@@ -1,4 +1,5 @@
 ﻿using SharpPress.Models;
+using SharpPress.Plugins;
 using SharpPress.Servers;
 using SharpPress.Services;
 using System.Collections.Concurrent;
@@ -63,54 +64,44 @@ namespace SharpPress.Helpers
 
         private async Task ProcessDownloadJobAsync(MarketPlugin downloadRequest)
         {
-            if (downloadRequest.isPackaged == false)
+            if (!PluginPaths.IsSafeName(downloadRequest.Name))
             {
-                string pluginsDirectory = Path.Combine(AppContext.BaseDirectory, "plugins");
-                string fileName = $"{downloadRequest.Name}.dll";
-                string filePath = Path.Combine(pluginsDirectory, fileName);
+                _logger.LogError($"Rejected market download with unsafe plugin name: '{downloadRequest.Name}'");
+                return;
+            }
 
-                Directory.CreateDirectory(pluginsDirectory);
+            using var client = new HttpClient();
+            var downloadResponse = await client.GetAsync(downloadRequest.DownloadLink, HttpCompletionOption.ResponseHeadersRead, _cancellationTokenSource.Token);
 
-                using var client = new HttpClient();
-                var downloadResponse = await client.GetAsync(downloadRequest.DownloadLink, HttpCompletionOption.ResponseHeadersRead, _cancellationTokenSource.Token);
+            if (!downloadResponse.IsSuccessStatusCode)
+            {
+                _logger.LogError($"Failed to download file from URL: {downloadRequest.DownloadLink}. Status: {downloadResponse.StatusCode}");
+                return;
+            }
 
-                if (!downloadResponse.IsSuccessStatusCode)
+            var content = await downloadResponse.Content.ReadAsByteArrayAsync(_cancellationTokenSource.Token);
+
+            PluginLoadResult result;
+            if (downloadRequest.isPackaged)
+            {
+                var package = await _packageManager.GetPackageFromByteArray(content);
+                if (package == null)
                 {
-                    _logger.LogError($"Failed to download file from URL: {downloadRequest.DownloadLink}. Status: {downloadResponse.StatusCode}");
+                    _logger.LogError($"Can't Install Packaged Plugin: '{downloadRequest.Name}' From '{downloadRequest.DownloadLink}'");
                     return;
                 }
 
-                using (var contentStream = await downloadResponse.Content.ReadAsStreamAsync())
-                using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    await contentStream.CopyToAsync(fileStream, _cancellationTokenSource.Token);
-                }
-
-                _logger.Log($"Successfully downloaded and saved plugin to: {filePath}");
-                await _pluginManager.ReloadAllPluginsAsync();
+                result = await _packageManager.InstallPackage(package, "marketplace");
             }
             else
             {
-                string pluginsDirectory = Path.Combine(AppContext.BaseDirectory, "plugins");
-                Directory.CreateDirectory(pluginsDirectory);
-
-                using var client = new HttpClient();
-                var downloadResponse = await client.GetAsync(downloadRequest.DownloadLink, HttpCompletionOption.ResponseHeadersRead, _cancellationTokenSource.Token);
-
-                if (!downloadResponse.IsSuccessStatusCode)
-                {
-                    _logger.LogError($"Failed to download file from URL: {downloadRequest.DownloadLink}. Status: {downloadResponse.StatusCode}");
-                    return;
-                }
-
-                var content = await downloadResponse.Content.ReadAsByteArrayAsync();
-                var package = await _packageManager.GetPackageFromByteArray(content);
-
-                if (package != null)
-                    await _packageManager.InstallPackage(package);
-                else
-                    _logger.LogError($"Can't Install Packaged Plugin: '{downloadRequest.Name}' From '{downloadRequest.DownloadLink}'");
+                result = await _pluginManager.InstallPluginAsync($"{downloadRequest.Name}.dll", content, "marketplace");
             }
+
+            if (result.Success)
+                _logger.Log($"Successfully installed plugin '{downloadRequest.Name}' from the marketplace.");
+            else
+                _logger.LogError($"Marketplace plugin '{downloadRequest.Name}' could not be installed: {result.Message}");
         }
 
         public async Task StopAsync()

@@ -5,7 +5,7 @@ using SharpPress.Services;
 
 namespace SharpPress.Services.General
 {
-    public class VideoStreamingService
+    public class VideoStreamingService : IVideoStreamingService
     {
         private readonly string _videosFolder;
         private readonly Logger _logger;

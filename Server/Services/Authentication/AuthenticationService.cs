@@ -12,7 +12,7 @@ using SharpPress.Services;
 
 namespace SharpPress.Services
 {
-    public class AuthenticationService
+    public class AuthenticationService : IAuthenticationService
     {
         private const string HashPrefix = "$PBKDF2-SHA256$";
         private const int Pbkdf2Iterations = 210000;

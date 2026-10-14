@@ -1,6 +1,6 @@
 @page "/admin/posts/{id?}/edit"
 @model SharpPress.Pages.PostEditorModel
-@inject SharpPress.Services.UserService _userService
+@inject SharpPress.Services.IUserService _userService
 
 @{
     Layout = "_AdminLayout";
@@ -240,6 +240,35 @@
                         </label>
                     }
                 </div>
+            </div>
+        }
+
+        @foreach (var field in Model.MetaFields)
+        {
+            Model.Meta.TryGetValue(field.Key, out var metaValue);
+
+            <div class="form-group">
+                @if (field.Type == SharpPress.Services.MetaFieldType.Checkbox)
+                {
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="Meta[@field.Key]" value="true" checked="@(metaValue == "true")" />
+                        @field.Label
+                    </label>
+                }
+                else if (field.Type == SharpPress.Services.MetaFieldType.TextArea)
+                {
+                    <label class="form-label">@field.Label</label>
+                    <textarea class="form-textarea" name="Meta[@field.Key]">@metaValue</textarea>
+                }
+                else
+                {
+                    <label class="form-label">@field.Label</label>
+                    <input class="form-input" type="@(field.Type == SharpPress.Services.MetaFieldType.Number ? "number" : field.Type == SharpPress.Services.MetaFieldType.Url ? "url" : "text")" name="Meta[@field.Key]" value="@metaValue" />
+                }
+                @if (!string.IsNullOrEmpty(field.Description))
+                {
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.3rem;">@field.Description</div>
+                }
             </div>
         }
 

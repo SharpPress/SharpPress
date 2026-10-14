@@ -31,6 +31,7 @@ namespace SharpPress.Services.Database
         private readonly ILogger<FeatherDatabase> _logger;
         private readonly CancellationToken _globalCancellationToken;
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _propertyCache = new();
+        private static readonly HashSet<string> _loggedMappingFailures = new(StringComparer.Ordinal);
 
         private const int MaxRetryAttempts = 3;
         private static readonly TimeSpan[] RetryDelays = {
@@ -45,7 +46,7 @@ namespace SharpPress.Services.Database
 
         private static readonly ConditionalWeakTable<object, Dictionary<string, object?>> _snapshots = new();
 
-        public FeatherDatabase(ILogger<FeatherDatabase> logger, MySQL_Config mySQL_Config, CancellationToken globalCancellationToken = default, FeatherDatabaseOptions databaseOptions = null)
+        public FeatherDatabase(ILogger<FeatherDatabase> logger, MySQL_Config mySQL_Config, ServerConfig serverConfig, CancellationToken globalCancellationToken = default, FeatherDatabaseOptions databaseOptions = null)
         {
             _logger = logger;
             _globalCancellationToken = globalCancellationToken;
@@ -55,7 +56,7 @@ namespace SharpPress.Services.Database
                 AutoCreateTable = true,
                 AutoModifyColumns = true,
                 AutoDeleteOrphanedColumns = false,
-                DebugMode = false
+                DebugMode = serverConfig.DebugMode
             } : databaseOptions;
 
             _connectionString = "";
@@ -272,7 +273,7 @@ namespace SharpPress.Services.Database
                 var currentValue = prop.GetValue(obj);
                 snapshot.TryGetValue(prop.Name, out var oldValue);
 
-                if (Equals(currentValue, oldValue)) continue;
+                if (SnapshotEquals(prop, currentValue, oldValue)) continue;
 
                 if (IsNumericType(prop.PropertyType) && oldValue != null && currentValue != null)
                 {
@@ -374,6 +375,19 @@ namespace SharpPress.Services.Database
 
             var sql = $"DELETE FROM `{tableName}` WHERE `{idProp.Name}` = @Id";
             await ExecuteNonQuery(sql, token, new MySqlParameter("@Id", id)).ConfigureAwait(false);
+        }
+
+        public async Task<int> DeleteWithCount<T>(long id, CancellationToken cancellationToken = default) where T : new()
+        {
+            var token = cancellationToken == default ? _globalCancellationToken : cancellationToken;
+
+            var type = typeof(T);
+            var tableName = GetTableName(type);
+            var idProp = GetCachedProperties(type).FirstOrDefault(p => p.Name.Equals("Id", StringComparison.OrdinalIgnoreCase));
+            if (idProp == null) return 0;
+
+            var sql = $"DELETE FROM `{tableName}` WHERE `{idProp.Name}` = @Id";
+            return await ExecuteNonQuery(sql, token, new MySqlParameter("@Id", id)).ConfigureAwait(false);
         }
 
         public async Task<int> DeleteByLinq<T>(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default) where T : new()
@@ -1052,13 +1066,38 @@ namespace SharpPress.Services.Database
             foreach (var prop in props)
             {
                 if (!prop.CanRead) continue;
-                snapshot[prop.Name] = prop.GetValue(obj);
+                var value = prop.GetValue(obj);
+                snapshot[prop.Name] = NeedsJsonSnapshot(prop.PropertyType) ? SerializeSnapshot(value) : value;
             }
             _snapshots.Remove(obj);
             _snapshots.Add(obj, snapshot);
         }
 
-        private static bool IsNumericType(Type t)
+        private static bool NeedsJsonSnapshot(Type type)
+        {
+            var t = Nullable.GetUnderlyingType(type) ?? type;
+            return !t.IsPrimitive && !t.IsEnum && !IsSimpleType(t);
+        }
+
+        private static object? SerializeSnapshot(object? value)
+        {
+            if (value == null) return null;
+            try { return JsonConvert.SerializeObject(value); }
+            catch { return value; }
+        }
+
+        private static bool SnapshotEquals(PropertyInfo prop, object? currentValue, object? oldValue)
+        {
+            if (oldValue is string oldJson && NeedsJsonSnapshot(prop.PropertyType))
+            {
+                if (currentValue == null) return oldJson == "";
+                try { return JsonConvert.SerializeObject(currentValue) == oldJson; }
+                catch { return false; }
+            }
+            return Equals(currentValue, oldValue);
+        }
+
+        internal static bool IsNumericType(Type t)
         {
             t = Nullable.GetUnderlyingType(t) ?? t;
             return t == typeof(int) || t == typeof(long) || t == typeof(short) ||
@@ -1076,50 +1115,57 @@ namespace SharpPress.Services.Database
             var obj = Activator.CreateInstance(type)!;
 
             var columns = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
             for (int i = 0; i < reader.FieldCount; i++)
                 columns[reader.GetName(i)] = i;
 
             foreach (var prop in props)
             {
-                if (!prop.CanWrite || prop.SetMethod == null) continue;
-                if (!columns.TryGetValue(prop.Name, out int ordinal)) continue;
+                if (!prop.CanWrite || prop.SetMethod == null)
+                    continue;
 
-                var val = reader.GetValue(ordinal);
-                if (val == DBNull.Value) continue;
+                if (!columns.TryGetValue(prop.Name, out int ordinal))
+                    continue;
 
-                var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                var value = reader.GetValue(ordinal);
+
+                if (value == DBNull.Value)
+                    continue;
 
                 try
                 {
-                    if (targetType.IsEnum)
-                    {
-                        prop.SetValue(obj, val switch
-                        {
-                            int i => Enum.ToObject(targetType, i),
-                            long l => Enum.ToObject(targetType, (int)l),
-                            string s => int.TryParse(s, out int p)
-                                ? Enum.ToObject(targetType, p)
-                                : Enum.Parse(targetType, s, true),
-                            _ => Convert.ChangeType(val, targetType)
-                        });
-                    }
-                    else if (targetType == typeof(Guid))
-                        prop.SetValue(obj, val is string s ? Guid.Parse(s) : new Guid((byte[])val));
-                    else if (targetType == typeof(bool))
-                        prop.SetValue(obj, Convert.ToInt32(val) != 0);
-                    else if (targetType == typeof(byte[]))
-                        prop.SetValue(obj, val is byte[] b ? b : Convert.FromBase64String((string)val));
-                    else if (val is string json && !IsSimpleType(targetType))
-                        prop.SetValue(obj, JsonConvert.DeserializeObject(json, targetType));
-                    else
-                        prop.SetValue(obj, Convert.ChangeType(val, targetType));
+                    var converted = FeatherQueryProvider.ReadValue(
+                        value,
+                        prop.PropertyType);
+
+                    prop.SetValue(obj, converted);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to map column '{Column}' to property '{Property}'", prop.Name, prop.Name);
+                    var failureKey = $"{type.Name}.{prop.Name}";
+                    var isNewFailure = false;
+                    lock (_loggedMappingFailures)
+                    {
+                        isNewFailure = _loggedMappingFailures.Add(failureKey);
+                    }
+                    if (isNewFailure)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Failed to map column '{Column}' to property '{Property}' on {Type} — value '{Value}' — further occurrences for this column will be suppressed",
+                            prop.Name,
+                            prop.Name,
+                            type.Name,
+                            value);
+                    }
 
-                    if (Nullable.GetUnderlyingType(prop.PropertyType) == null && targetType.IsValueType)
-                        prop.SetValue(obj, Activator.CreateInstance(targetType));
+                    if (Nullable.GetUnderlyingType(prop.PropertyType) == null &&
+                        prop.PropertyType.IsValueType)
+                    {
+                        prop.SetValue(
+                            obj,
+                            Activator.CreateInstance(prop.PropertyType));
+                    }
                 }
             }
 
@@ -1130,7 +1176,13 @@ namespace SharpPress.Services.Database
         internal static PropertyInfo[] GetCachedProperties(Type type)
             => _propertyCache.GetOrAdd(type, t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance));
 
-        private static string GetTableName(Type type) => type.Name;
+        internal static string GetTableName(Type type) => type.Name;
+
+        /// <summary>هشدار: آپدیت اتمیکِ در نظرگرفته‌شده برای یک ردیف، چند ردیف را تغییر داده است.</summary>
+        internal void ReportAtomicMassUpdate(string tableName, int affected)
+            => _logger.LogWarning(
+                "FeatherAtomicUpdate on '{Table}' affected {Affected} rows — the OnlyIf guard does not pin a single row (check for a missing Id predicate).",
+                tableName, affected);
 
         private static string GetSqlType(PropertyInfo prop)
         {
@@ -1317,6 +1369,7 @@ namespace SharpPress.Services.Database
     public class FeatherQueryProvider : IQueryProvider
     {
         private readonly FeatherDatabase _database;
+        internal FeatherDatabase Database => _database;
 
         public FeatherQueryProvider(FeatherDatabase database)
         {
@@ -1530,23 +1583,74 @@ namespace SharpPress.Services.Database
             return obj;
         }
 
-        private static object? ReadValue(object? value, Type targetType)
+        internal static object? ReadValue(object? value, Type targetType)
         {
             if (value == null || value == DBNull.Value)
                 return GetDefault(targetType);
 
-            var underlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+            var nullableType = Nullable.GetUnderlyingType(targetType);
+            var underlying = nullableType ?? targetType;
+
+            if (underlying.IsInstanceOfType(value))
+                return value;
+
+            if (underlying == typeof(string))
+                return value.ToString();
 
             if (underlying == typeof(Guid))
-                return value is string s ? Guid.Parse(s) : new Guid((byte[])value);
+            {
+                return value switch
+                {
+                    Guid guid => guid,
+                    string s => Guid.Parse(s),
+                    byte[] bytes => new Guid(bytes),
+                    _ => Guid.Parse(Convert.ToString(value)!)
+                };
+            }
 
             if (underlying == typeof(bool))
                 return Convert.ToInt32(value) != 0;
 
             if (underlying.IsEnum)
-                return Enum.ToObject(underlying, Convert.ToInt32(value));
+            {
+                if (value is string enumString)
+                    return Enum.Parse(underlying, enumString, true);
 
-            return Convert.ChangeType(value, underlying);
+                return Enum.ToObject(
+                    underlying,
+                    Convert.ChangeType(value, Enum.GetUnderlyingType(underlying))!);
+            }
+
+            if (underlying == typeof(byte[]))
+            {
+                return value switch
+                {
+                    byte[] bytes => bytes,
+                    string s => Convert.FromBase64String(s),
+                    _ => throw new InvalidCastException(
+                        $"Cannot convert {value.GetType().Name} to byte[].")
+                };
+            }
+
+            if (value is string json && !FeatherDatabase.IsSimpleType(underlying))
+            {
+                return JsonConvert.DeserializeObject(json, underlying);
+            }
+
+            if (underlying == typeof(DateTime))
+                return Convert.ToDateTime(value);
+
+            if (underlying == typeof(DateTimeOffset))
+                return value is DateTime dt
+                    ? new DateTimeOffset(dt)
+                    : DateTimeOffset.Parse(value.ToString()!);
+
+            if (underlying == typeof(TimeSpan))
+                return value is TimeSpan ts
+                    ? ts
+                    : TimeSpan.Parse(value.ToString()!);
+
+            return Convert.ChangeType(value, underlying, System.Globalization.CultureInfo.InvariantCulture);
         }
 
         private static object? GetDefault(Type type)
@@ -1753,8 +1857,7 @@ namespace SharpPress.Services.Database
             var keySelector = GetLambdaFromMethodCall(methodCall);
             if (keySelector == null) return;
 
-            var columnName = GetColumnName(keySelector.Body);
-            var orderPart = $"`{columnName}` {direction}";
+            var orderPart = $"{TranslateOrderKey(keySelector.Body)} {direction}";
 
             if (isThenBy)
             {
@@ -1766,6 +1869,19 @@ namespace SharpPress.Services.Database
             {
                 ctx.OrderByClause = orderPart;
             }
+        }
+
+        // Order keys may be simple properties (p.CreatedAt) or coalesce chains
+        // (p.PublishedAt ?? p.CreatedAt) that translate to SQL COALESCE.
+        private string TranslateOrderKey(Expression expression)
+        {
+            if (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked } unary)
+                return TranslateOrderKey(unary.Operand);
+
+            if (expression is BinaryExpression { NodeType: ExpressionType.Coalesce } coalesce)
+                return $"COALESCE({TranslateOrderKey(coalesce.Left)}, {TranslateOrderKey(coalesce.Right)})";
+
+            return $"`{GetColumnName(expression)}`";
         }
 
         private void ProcessSelect(MethodCallExpression methodCall, QueryContext ctx)
@@ -1917,6 +2033,9 @@ namespace SharpPress.Services.Database
             if (binary.NodeType == ExpressionType.NotEqual && IsNullConstant(binary.Left))
                 return $"{TranslateOperand(binary.Right)} IS NOT NULL";
 
+            if (binary.NodeType == ExpressionType.Coalesce)
+                return $"COALESCE({TranslateOperand(binary.Left)}, {TranslateOperand(binary.Right)})";
+
             var op = binary.NodeType switch
             {
                 ExpressionType.Equal => "=",
@@ -1960,6 +2079,8 @@ namespace SharpPress.Services.Database
                 ConstantExpression constant => AddParameter(constant.Value),
                 UnaryExpression unary when unary.NodeType == ExpressionType.Convert =>
                     TranslateOperand(unary.Operand, unary.Type),
+                BinaryExpression { NodeType: ExpressionType.Coalesce } coalesce =>
+                    $"COALESCE({TranslateOperand(coalesce.Left)}, {TranslateOperand(coalesce.Right)})",
                 MethodCallExpression methodCall when methodCall.Method.Name == "ToString" =>
                     $"CAST({TranslateOperand(methodCall.Object!)} AS CHAR)",
                 _ => AddParameter(GetValue(expression))
@@ -2210,6 +2331,18 @@ namespace SharpPress.Services.Database
             };
         }
 
+        /// <summary>LIMIT را سمت دیتابیس اعمال می‌کند و لیست برمی‌گرداند.</summary>
+        public static async Task<List<T>> TakeAsync<T>(this IQueryable<T> query, int count, CancellationToken cancellationToken = default)
+        {
+            return query switch
+            {
+                FeatherQueryable<T> fq => await fq._provider.ExecuteAsync<List<T>>(
+                    Expression.Call(typeof(Queryable), "Take", new[] { typeof(T) }, fq._expression, Expression.Constant(count)),
+                    cancellationToken).ConfigureAwait(false),
+                _ => query.Take(count).ToList()
+            };
+        }
+
         public static async Task<T?> FirstOrDefaultAsync<T>(this IQueryable<T> query, CancellationToken cancellationToken = default)
         {
             return query switch
@@ -2282,6 +2415,243 @@ namespace SharpPress.Services.Database
             bool condition,
             Expression<Func<T, TKey>> keySelector)
             => condition ? query.OrderByDescending(keySelector) : (IOrderedQueryable<T>)query;
+
+        public static async Task<int> UpdateAsync<T>(this IQueryable<T> query, Action<T> updateAction, CancellationToken cancellationToken = default) where T : notnull, new()
+        {
+            if (updateAction == null) throw new ArgumentNullException(nameof(updateAction));
+
+            if (query is not FeatherQueryable<T> fq)
+                throw new NotSupportedException("UpdateAsync is only supported on FeatherDatabase queries.");
+
+            var db = fq._provider.Database;
+
+            var items = await fq._provider
+                .ExecuteAsync<List<T>>(fq._expression, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (items.Count == 0) return 0;
+
+            foreach (var item in items)
+                updateAction(item);
+
+            await db.SaveMultiChangedData(items, cancellationToken).ConfigureAwait(false);
+
+            return items.Count;
+        }
+
+        public static async Task<bool> SetAsync<T>(this IQueryable<T> query, Expression<Func<T, T>> setSelector, CancellationToken cancellationToken = default) where T : new()
+        {
+            if (setSelector == null) throw new ArgumentNullException(nameof(setSelector));
+            if (query is not FeatherQueryable<T> fq)
+                throw new NotSupportedException("SetAsync is only supported on FeatherDatabase queries.");
+
+            var predicates = new List<LambdaExpression>();
+            CollectWherePredicates(fq._expression, predicates);
+            if (predicates.Count == 0)
+                throw new InvalidOperationException("SetAsync without Where() is not allowed — it would update every row.");
+
+            var setParts = new List<string>();
+            var parameters = new List<MySqlParameter>();
+            var index = 0;
+
+            var body = setSelector.Body;
+            if (body is MemberInitExpression init)
+            {
+                foreach (var binding in init.Bindings.OfType<MemberAssignment>())
+                    AppendSetPart<T>(setParts, parameters, binding.Member.Name, binding.Expression, index++);
+            }
+            else if (body is NewExpression newExpr && newExpr.Members != null && newExpr.Members.Count == newExpr.Arguments.Count)
+            {
+                for (int i = 0; i < newExpr.Members.Count; i++)
+                    AppendSetPart<T>(setParts, parameters, newExpr.Members[i].Name, newExpr.Arguments[i], index++);
+            }
+            else
+            {
+                throw new NotSupportedException("SetAsync expects an object initializer such as a => new AppInstance { Col1 = v1, Col2 = v2 }.");
+            }
+
+            var whereParts = new List<string>();
+            foreach (var lambda in predicates)
+            {
+                var typed = Expression.Lambda<Func<T, bool>>(lambda.Body, lambda.Parameters);
+                var (where, args) = SqlExpressionTranslator.BuildWhere(typed);
+                whereParts.Add($"({where})");
+                parameters.AddRange(args);
+            }
+
+            var sql = $"UPDATE `{FeatherDatabase.GetTableName(typeof(T))}` SET {string.Join(", ", setParts)} WHERE {string.Join(" AND ", whereParts)}";
+            var affected = await fq._provider.Database.ExecuteNonQueryWithCount(sql, cancellationToken, parameters.ToArray()).ConfigureAwait(false);
+            return affected > 0;
+        }
+
+        private static void AppendSetPart<T>(List<string> setParts, List<MySqlParameter> parameters, string memberName, Expression valueExpression, int index)
+        {
+            if (memberName == "Id")
+                throw new NotSupportedException("SetAsync cannot update the Id column.");
+
+            var prop = FeatherDatabase.GetCachedProperties(typeof(T))
+                .FirstOrDefault(p => p.Name.Equals(memberName, StringComparison.OrdinalIgnoreCase))
+                ?? throw new ArgumentException($"Type '{typeof(T).Name}' has no property '{memberName}'.");
+
+            var valueExpr = valueExpression;
+            while (valueExpr is UnaryExpression convert &&
+                   (convert.NodeType == ExpressionType.Convert || convert.NodeType == ExpressionType.ConvertChecked))
+                valueExpr = convert.Operand;
+
+            if (valueExpr is MemberExpression column && column.Expression is ParameterExpression)
+            {
+                setParts.Add($"`{prop.Name}` = `{column.Member.Name}`");
+                return;
+            }
+
+            var value = Expression.Lambda(valueExpr).Compile().DynamicInvoke() ?? DBNull.Value;
+            if (value is Enum enumValue)
+                value = Convert.ChangeType(enumValue, Enum.GetUnderlyingType(enumValue.GetType()));
+
+            var parameterName = $"@feather_set_{index}";
+            setParts.Add($"`{prop.Name}` = {parameterName}");
+            parameters.Add(new MySqlParameter(parameterName, value));
+        }
+
+        private static void CollectWherePredicates(Expression? expression, List<LambdaExpression> found)
+        {
+            if (expression is not MethodCallExpression call)
+                return;
+
+            if (call.Object != null)
+                CollectWherePredicates(call.Object, found);
+            foreach (var arg in call.Arguments)
+                CollectWherePredicates(arg, found);
+
+            if (call.Method.Name == "Where" &&
+                call.Arguments.Count == 2 &&
+                StripQuote(call.Arguments[1]) is LambdaExpression lambda)
+                found.Add(lambda);
+        }
+
+        private static Expression StripQuote(Expression expression)
+            => expression is UnaryExpression quote && quote.NodeType == ExpressionType.Quote ? quote.Operand : expression;
+
+        /// <summary>
+        /// Starts an atomic server-side delta update, e.g.
+        /// Query&lt;User&gt;().Modify(u => u.Vault - cost).OnlyIf(u => u.Vault >= cost).RunAsync()
+        /// compiles to a single UPDATE whose condition is evaluated by the database,
+        /// so it is safe against concurrent writers. RunAsync returns true when at
+        /// least one row matched the condition and was updated.
+        /// </summary>
+        public static FeatherAtomicUpdate<T> Modify<T>(this IQueryable<T> query, Expression<Func<T, object>> deltaSelector) where T : notnull
+        {
+            if (query is not FeatherQueryable<T> fq)
+                throw new NotSupportedException("Modify is only supported on FeatherDatabase queries.");
+
+            var update = new FeatherAtomicUpdate<T>(fq._provider.Database);
+            update.Modify(deltaSelector);
+            return update;
+        }
+    }
+
+    /// <summary>
+    /// Fluent builder for an atomic delta update executed as one UPDATE statement.
+    /// Unlike UpdateAsync (which loads, mutates in memory, then saves), the guard
+    /// in OnlyIf is checked by MySQL in the same statement as the delta, so a
+    /// stale read can never satisfy the check.
+    /// </summary>
+    public sealed class FeatherAtomicUpdate<T> where T : notnull
+    {
+        private readonly FeatherDatabase _db;
+        private readonly List<string> _setParts = new();
+        private readonly List<MySqlParameter> _parameters = new();
+        private Expression<Func<T, bool>>? _condition;
+        private int _parameterIndex;
+        private bool _executed;
+
+        internal FeatherAtomicUpdate(FeatherDatabase db)
+        {
+            _db = db;
+        }
+
+        /// <summary>Adds a server-side delta such as u => u.Vault - cost. Numeric columns only.</summary>
+        public FeatherAtomicUpdate<T> Modify(Expression<Func<T, object>> deltaSelector)
+        {
+            if (deltaSelector == null) throw new ArgumentNullException(nameof(deltaSelector));
+
+            var body = deltaSelector.Body;
+            if (body is UnaryExpression convert && convert.NodeType == ExpressionType.Convert)
+                body = convert.Operand;
+
+            MemberExpression? column = null;
+            Expression? value = null;
+            bool invert = false;
+
+            if (body is BinaryExpression binary &&
+                (binary.NodeType == ExpressionType.Add || binary.NodeType == ExpressionType.Subtract))
+            {
+                if (binary.Left is MemberExpression leftMember && leftMember.Expression is ParameterExpression)
+                {
+                    column = leftMember;
+                    value = binary.Right;
+                    invert = binary.NodeType == ExpressionType.Subtract;
+                }
+                else if (binary.Right is MemberExpression rightMember && rightMember.Expression is ParameterExpression)
+                {
+                    column = rightMember;
+                    value = binary.Left;
+                    invert = binary.NodeType == ExpressionType.Add; // cost - u.Vault flips the sign
+                }
+            }
+
+            if (column == null || value == null)
+                throw new NotSupportedException("Modify expects a delta expression such as u => u.Vault - cost.");
+
+            var prop = FeatherDatabase.GetCachedProperties(typeof(T))
+                .FirstOrDefault(p => p.Name.Equals(column.Member.Name, StringComparison.OrdinalIgnoreCase))
+                ?? throw new ArgumentException($"Type '{typeof(T).Name}' has no property '{column.Member.Name}'.");
+
+            if (!FeatherDatabase.IsNumericType(prop.PropertyType) || !FeatherDatabase.IsNumericType(value.Type))
+                throw new NotSupportedException($"Modify only supports numeric columns and values ('{prop.Name}' is {prop.PropertyType.Name}). Use OnlyIf/RunAsync with a full UpdateAsync for other types.");
+
+            var delta = Expression.Lambda(value).Compile().DynamicInvoke()
+                ?? throw new NotSupportedException("Modify delta cannot evaluate to null.");
+
+            var parameterName = $"@feather_delta_{_parameterIndex++}";
+            _setParts.Add($"`{prop.Name}` = `{prop.Name}` {(invert ? "-" : "+")} {parameterName}");
+            _parameters.Add(new MySqlParameter(parameterName, delta));
+            return this;
+        }
+
+        /// <summary>Sets the guard evaluated atomically in the same UPDATE, e.g. u => u.Vault >= cost.</summary>
+        public FeatherAtomicUpdate<T> OnlyIf(Expression<Func<T, bool>> condition)
+        {
+            _condition = condition ?? throw new ArgumentNullException(nameof(condition));
+            return this;
+        }
+
+        /// <summary>Executes the update. Returns true when at least one row matched the guard.</summary>
+        public async Task<bool> RunAsync(CancellationToken cancellationToken = default)
+        {
+            if (_setParts.Count == 0)
+                throw new InvalidOperationException("RunAsync called without any Modify() delta.");
+            if (_executed)
+                throw new InvalidOperationException("This FeatherAtomicUpdate has already been executed.");
+
+            var sql = $"UPDATE `{FeatherDatabase.GetTableName(typeof(T))}` SET {string.Join(", ", _setParts)}";
+            var tableName = FeatherDatabase.GetTableName(typeof(T));
+
+            if (_condition != null)
+            {
+                var (where, args) = SqlExpressionTranslator.BuildWhere(_condition);
+                sql += $" WHERE {where}";
+                _parameters.AddRange(args);
+            }
+
+            _executed = true;
+            var affected = await _db.ExecuteNonQueryWithCount(sql, cancellationToken, _parameters.ToArray()).ConfigureAwait(false);
+            // کاغذ اعلان: آپدیت اتمیکِ «تکی» که بیش از یک ردیف را تغییر دهد یعنی گارد OnlyIf
+            // ردیف را پین نکرده است (همان باگِ شارژ دسته‌جمعیِ صفحه‌ی تمدید). هشدار تا در لاگ دیده شود.
+            if (affected > 1)
+                _db.ReportAtomicMassUpdate(tableName, affected);
+            return affected > 0;
+        }
     }
 
     /// <summary>
@@ -2334,5 +2704,8 @@ namespace SharpPress.Services.Database
 
         public Task<T?> FirstOrDefaultAsync(CancellationToken cancellationToken = default)
             => _query.FirstOrDefaultAsync(cancellationToken);
+
+        public Task<int> UpdateAsync(Action<T> updateAction, CancellationToken cancellationToken = default)
+            => _query.UpdateAsync(updateAction, cancellationToken);
     }
 }

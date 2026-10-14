@@ -1,0 +1,55 @@
+@page "/admin/sample"
+@model SamplePlugin.Pages.FeatureCheckModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Sample plugin feature check";
+}
+
+<style>
+    .fc-summary { display: flex; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .fc-pill { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 0.75rem 1.25rem; min-width: 120px; }
+    .fc-pill strong { display: block; font-size: 1.6rem; color: var(--text-white); }
+    .fc-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
+    .fc-table th, .fc-table td { text-align: left; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+    .fc-table th { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .fc-status { font-weight: 600; text-transform: uppercase; font-size: 0.78rem; }
+    .fc-pass { color: var(--success); }
+    .fc-fail { color: var(--danger); }
+    .fc-skip { color: var(--warning); }
+    .fc-links { margin-top: 1.25rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .fc-links a { color: var(--accent); }
+</style>
+
+<h2 style="color: var(--text-white); margin-bottom: 0.4rem;">Sample plugin feature check</h2>
+<p style="color: var(--text-muted); margin-bottom: 1.25rem;">Every row exercises a plugin feature live. Reload the page to run the checks again.</p>
+
+<div class="fc-summary">
+    <div class="fc-pill"><strong class="fc-pass">@Model.Passed</strong>passed</div>
+    <div class="fc-pill"><strong class="fc-fail">@Model.Failed</strong>failed</div>
+    <div class="fc-pill"><strong class="fc-skip">@Model.Skipped</strong>skipped</div>
+</div>
+
+<table class="fc-table">
+    <thead>
+        <tr><th>Feature</th><th>Result</th><th>Details</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var result in Model.Results)
+        {
+            <tr>
+                <td>@result.Feature</td>
+                <td><span class="fc-status fc-@result.Status">@result.Status</span></td>
+                <td>@result.Detail</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div class="fc-links">
+    <a href="/admin/plugin-settings/SamplePlugin">Plugin settings form</a>
+    <a href="/sample/page">Public plugin page</a>
+    <a href="/sample/hello/World">Route with parameter</a>
+    <a href="/sample-api/ping">MVC controller</a>
+    <a href="/sample/files/hello.txt">Static file</a>
+    <a href="/admin/posts">Create a post titled "forbidden" to see the veto</a>
+</div>

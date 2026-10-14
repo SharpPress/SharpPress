@@ -4,7 +4,7 @@ using SharpPress.Services.Database;
 
 namespace SharpPress.Services.General
 {
-    public class PostService
+    public class PostService : IPostService
     {
         private readonly FeatherDatabase _db;
         private readonly Logger _logger;
@@ -53,10 +53,16 @@ namespace SharpPress.Services.General
             if (post.Status == PostStatus.Published)
                 post.PublishedAt = DateTime.UtcNow;
 
+            await _eventBus.PublishOrThrowAsync(new PostCreatingEvent(post));
+
             await _db.SaveData(post);
             _logger.Log($"Post created: {post.Title}");
 
             await _eventBus.PublishAsync(new PostCreatedEvent(post));
+
+            if (post.Status == PostStatus.Published)
+                await _eventBus.PublishAsync(new PostPublishedEvent(post));
+
             return post;
         }
 
@@ -67,13 +73,20 @@ namespace SharpPress.Services.General
 
             post.UpdatedAt = DateTime.UtcNow;
 
-            if (post.Status == PostStatus.Published && existing.Status != PostStatus.Published)
+            var becamePublished = post.Status == PostStatus.Published && existing.Status != PostStatus.Published;
+            if (becamePublished)
                 post.PublishedAt = DateTime.UtcNow;
+
+            await _eventBus.PublishOrThrowAsync(new PostUpdatingEvent(post));
 
             await _db.SaveData(post);
             _logger.Log($"Post updated: {post.Title}");
 
             await _eventBus.PublishAsync(new PostUpdatedEvent(post));
+
+            if (becamePublished)
+                await _eventBus.PublishAsync(new PostPublishedEvent(post));
+
             return post;
         }
 
@@ -82,6 +95,8 @@ namespace SharpPress.Services.General
             var post = await _db.GetData<Post>(id);
             if (post == null) return;
 
+            await _eventBus.PublishOrThrowAsync(new PostDeletingEvent(post));
+
             var postCategories = await _db.GetListByLinq<PostCategory>(pc => pc.PostId == id);
             foreach (var pc in postCategories)
                 await _db.Delete<PostCategory>(pc.Id);
@@ -89,6 +104,8 @@ namespace SharpPress.Services.General
             var postTags = await _db.GetListByLinq<PostTag>(pt => pt.PostId == id);
             foreach (var pt in postTags)
                 await _db.Delete<PostTag>(pt.Id);
+
+            await _db.DeleteByLinq<PostMeta>(m => m.PostId == id);
 
             await _db.Delete<Post>(id);
             _logger.Log($"Post deleted: {post.Title}");
@@ -141,6 +158,9 @@ namespace SharpPress.Services.General
                 post.UpdatedAt = DateTime.UtcNow;
                 await _db.SaveData(post);
                 _logger.Log($"Scheduled post published: {post.Title}");
+
+                await _eventBus.PublishAsync(new PostUpdatedEvent(post));
+                await _eventBus.PublishAsync(new PostPublishedEvent(post));
             }
         }
 

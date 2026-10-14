@@ -1,7 +1,5 @@
 # Visual Studio
 .vs/
-*/.zcode/*
-*/.zcode
 *.user
 *.suo
 *.cache
@@ -16,4 +14,3 @@ obj/
 *.deps.json
 *.runtimeconfig.json
 *.zip
-.zcode/

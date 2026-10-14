@@ -26,10 +26,10 @@ namespace SharpPress.Pages
 
         private readonly Logger _logger;
         private readonly FeatherDatabase _database;
-        private readonly AuthenticationService _authService;
+        private readonly IAuthenticationService _authService;
         private readonly ConfigManager _configManager;
 
-        public SetupModel(FeatherDatabase database, AuthenticationService authService, ConfigManager configManager, Logger logger)
+        public SetupModel(FeatherDatabase database, IAuthenticationService authService, ConfigManager configManager, Logger logger)
         {
             _database = database;
             _authService = authService;

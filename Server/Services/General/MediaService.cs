@@ -6,7 +6,7 @@ using SixLabors.ImageSharp.Processing;
 
 namespace SharpPress.Services.General
 {
-    public class MediaService
+    public class MediaService : IMediaService
     {
         private readonly FeatherDatabase _db;
         private readonly Logger _logger;
@@ -48,6 +48,12 @@ namespace SharpPress.Services.General
 
         public async Task<MediaItem> UploadAsync(Stream fileStream, string fileName, string contentType, string uploadedBy)
         {
+            var uploading = new MediaUploadingEvent(fileStream, fileName, contentType, uploadedBy);
+            await _eventBus.PublishOrThrowAsync(uploading);
+            fileStream = uploading.Content;
+            fileName = uploading.FileName;
+            contentType = uploading.ContentType;
+
             var safeName = GetSafeFileName(fileName);
             var ext = Path.GetExtension(safeName);
             var uniqueName = $"{Guid.NewGuid():N}{ext}";

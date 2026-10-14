@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using SharpPress.Events;
 using SharpPress.Helpers;
 using SharpPress.Models;
 using SharpPress.Services;
@@ -165,7 +166,7 @@ namespace SharpPress
                 await next();
             });
 
-            app.MapGet("/rss.xml", async (HttpRequest request, HttpResponse response, PostService postService, ConfigManager configManager) =>
+            app.MapGet("/rss.xml", async (HttpRequest request, HttpResponse response, IPostService postService, ConfigManager configManager, IFilterPipeline filters) =>
             {
                 string baseUrl = ConfigManager.NormalizeUrl(configManager.Config.PanelDomain);
                 var posts = await postService.GetPublishedPostsAsync();
@@ -183,20 +184,21 @@ namespace SharpPress
                                 new XElement("title", p.Title),
                                 new XElement("link", $"{baseUrl}/blog/{p.Slug}"),
                                 new XElement("guid", $"{baseUrl}/blog/{p.Slug}"),
-                                new XElement("description", p.Excerpt ?? ""),
+                                new XElement("description", filters.Apply(FilterKeys.RssItemDescription, p.Excerpt ?? "")),
                                 new XElement("pubDate", p.PublishedAt.Value.ToString("R"))))));
 
                 response.Headers.CacheControl = "public, max-age=600";
                 return Results.Text(rss.ToString(), "application/rss+xml", Encoding.UTF8);
             });
 
-            app.MapGet("/sitemap.xml", async (HttpRequest request, HttpResponse response, PostService postService, ConfigManager configManager) =>
+            app.MapGet("/sitemap.xml", async (HttpRequest request, HttpResponse response, IPostService postService, ConfigManager configManager, IFilterPipeline filters) =>
             {
                 string baseUrl = ConfigManager.NormalizeUrl(configManager.Config.PanelDomain);
                 var posts = await postService.GetPublishedPostsAsync();
+                var staticPaths = filters.Apply(FilterKeys.SitemapUrls, new List<string> { "/", "/login", "/register" });
 
                 var sitemap = new XElement(XNamespace.Get("http://www.sitemaps.org/schemas/sitemap/0.9") + "urlset",
-                    new[] { "/", "/login", "/register" }.Select(path => BuildSitemapUrl(baseUrl, path, null))
+                    staticPaths.Select(path => BuildSitemapUrl(baseUrl, path, null))
                     .Concat(posts.Select(p => BuildSitemapUrl(baseUrl, $"/blog/{p.Slug}", p.UpdatedAt))));
 
                 response.Headers.CacheControl = "public, max-age=600";
@@ -211,7 +213,7 @@ namespace SharpPress
                 return Results.Text($"User-agent: *\nAllow: /\n\nSitemap: {baseUrl}/sitemap.xml\n", "text/plain", Encoding.UTF8);
             });
 
-            bool ValidateAdmin(HttpRequest request, AuthenticationService authService)
+            bool ValidateAdmin(HttpRequest request, IAuthenticationService authService)
             {
                 string authHeader = request.Headers["Authorization"].ToString();
                 if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ")) return false;
@@ -226,7 +228,7 @@ namespace SharpPress
 
             app.MapGet("/api/plugins", (
                 HttpRequest request,
-                [FromServices] AuthenticationService authService) =>
+                [FromServices] IAuthenticationService authService) =>
             {
         
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
@@ -237,7 +239,8 @@ namespace SharpPress
                     id = p.Key,
                     name = p.Value.Name,
                     version = p.Value.Version,
-                    enabled = true
+                    enabled = p.Value.Running,
+                    error = p.Value.Error
                 }).ToList();
 
                 return Results.Ok(new { success = true, plugins = pluginList });
@@ -247,7 +250,7 @@ namespace SharpPress
                 HttpRequest request,
                 PackageManager packageManager,
                 Logger logger,
-                [FromServices] AuthenticationService authService) =>
+                [FromServices] IAuthenticationService authService) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
 
@@ -258,82 +261,53 @@ namespace SharpPress
 
                 if (file == null || file.Length == 0) return Results.BadRequest(new { success = false, message = "No file uploaded" });
 
-                string pluginsDirectory = Path.Combine(AppContext.BaseDirectory, "plugins");
-                Directory.CreateDirectory(pluginsDirectory);
-
                 string safeFileName = Path.GetFileName(file.FileName);
-                if (string.IsNullOrEmpty(safeFileName)) return Results.BadRequest(new { success = false, message = "Invalid file name" });
-
-                if (safeFileName.StartsWith(".") || safeFileName.Contains(".."))
+                if (string.IsNullOrEmpty(safeFileName) || safeFileName.StartsWith(".") || safeFileName.Contains(".."))
                     return Results.BadRequest(new { success = false, message = "Invalid file name" });
-
-                string tempFilePath = Path.Combine(pluginsDirectory, $"{safeFileName}.tmp");
-                string finalFilePath = Path.Combine(pluginsDirectory, safeFileName);
 
                 try
                 {
                     logger.Log("📤 Receiving plugin file...");
-                    using (var stream = new FileStream(tempFilePath, FileMode.Create))
+                    using var buffer = new MemoryStream();
+                    await file.CopyToAsync(buffer);
+                    var data = buffer.ToArray();
+
+                    PluginLoadResult result;
+                    var extension = Path.GetExtension(safeFileName);
+
+                    if (extension.Equals(".dll", StringComparison.OrdinalIgnoreCase))
                     {
-                        await file.CopyToAsync(stream);
+                        result = await pluginManager.InstallPluginAsync(safeFileName, data, "api");
                     }
-
-                    if (Path.GetExtension(safeFileName) == ".dll")
+                    else if (extension.Equals(".pkg", StringComparison.OrdinalIgnoreCase))
                     {
-                        await pluginManager.UnloadAllPluginsAsync();
-
-                        if (File.Exists(finalFilePath))
-                        {
-                            try { File.Delete(finalFilePath); }
-                            catch (IOException ioEx)
-                            {
-                                logger.LogError($"Could not delete old plugin (locked?): {ioEx.Message}. Overwriting may fail or require restart.");
-                            }
-                        }
-
-                        if (File.Exists(finalFilePath)) File.Delete(finalFilePath);
-                        File.Move(tempFilePath, finalFilePath);
-                        tempFilePath = null;
-
-                        await pluginManager.LoadPluginsAsync();
-                    }
-                    else if (Path.GetExtension(safeFileName) == ".pkg")
-                    {
-                        var package = await packageManager.GetPackageFromByteArray(await File.ReadAllBytesAsync(tempFilePath));
-                        if (package != null)
-                            await packageManager.InstallPackage(package);
-                        else
+                        var package = await packageManager.GetPackageFromByteArray(data);
+                        if (package == null)
                             return Results.BadRequest(new { success = false, message = "Invalid package" });
+
+                        result = await packageManager.InstallPackage(package, "api");
                     }
                     else
                     {
                         return Results.BadRequest(new { success = false, message = "Unsupported file type." });
                     }
 
-                    logger.Log("✅ Plugin upload and reload complete.");
-                    return Results.Ok(new { success = true, message = "Plugin uploaded and reloaded successfully." });
+                    if (!result.Success)
+                        return Results.BadRequest(new { success = false, message = result.Message });
+
+                    logger.Log("✅ Plugin upload complete.");
+                    return Results.Ok(new { success = true, message = "Plugin installed successfully.", plugin = result.PluginName });
                 }
                 catch (Exception ex)
                 {
                     logger.LogError($"Error uploading plugin: {ex.Message}");
                     return Results.StatusCode(500);
                 }
-                finally
-                {
-                    if (tempFilePath != null && File.Exists(tempFilePath))
-                    {
-                        try { File.Delete(tempFilePath); }
-                        catch (Exception ex)
-                        {
-                            logger.LogError($"Failed to delete temporary plugin file '{tempFilePath}': {ex.Message}");
-                        }
-                    }
-                }
             });
 
             app.MapPost("/api/plugins/reload", async (
                 HttpRequest request,
-                [FromServices] AuthenticationService authService) =>
+                [FromServices] IAuthenticationService authService) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
 
@@ -344,7 +318,7 @@ namespace SharpPress
             app.MapPost("/api/marketplace/download", async (
                 HttpRequest request,
                 [FromBody] MarketPlugin downloadRequest,
-                [FromServices] AuthenticationService authService) =>
+                [FromServices] IAuthenticationService authService) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
 
@@ -364,7 +338,7 @@ namespace SharpPress
                 return Results.Accepted(null, new { success = true, message = $"Download request for '{downloadRequest.Name}.dll' has been queued and will be processed." });
             });
 
-            app.MapGet("/videos/{filename}", async (HttpRequest request, string filename, [FromServices] VideoStreamingService videoService, [FromServices] AuthenticationService authService) =>
+            app.MapGet("/videos/{filename}", async (HttpRequest request, string filename, [FromServices] IVideoStreamingService videoService, [FromServices] IAuthenticationService authService) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
 
@@ -379,7 +353,7 @@ namespace SharpPress
                 return Results.File(filePath, contentType, enableRangeProcessing: true);
             });
 
-            app.MapGet("/media/{filename}", (string filename, [FromServices] MediaService mediaService) =>
+            app.MapGet("/media/{filename}", (string filename, [FromServices] IMediaService mediaService) =>
             {
                 filename = Path.GetFileName(filename);
                 if (string.IsNullOrEmpty(filename)) return Results.BadRequest("Invalid filename.");
@@ -392,7 +366,7 @@ namespace SharpPress
                 return Results.File(filePath, contentType, enableRangeProcessing: isVideo);
             });
 
-            app.MapGet("/media/thumbnails/{filename}", (string filename, [FromServices] MediaService mediaService) =>
+            app.MapGet("/media/thumbnails/{filename}", (string filename, [FromServices] IMediaService mediaService) =>
             {
                 filename = Path.GetFileName(filename);
                 if (string.IsNullOrEmpty(filename)) return Results.BadRequest("Invalid filename.");
@@ -403,20 +377,20 @@ namespace SharpPress
                 return Results.File(filePath, "image/jpeg");
             });
 
-            app.MapGet("/api/posts", async ([FromServices] PostService postService) =>
+            app.MapGet("/api/posts", async ([FromServices] IPostService postService) =>
             {
                 var posts = await postService.GetPublishedPostsAsync();
                 return Results.Ok(posts.Select(p => new { p.Id, p.Title, p.Slug, p.Excerpt, p.AuthorUsername, p.PublishedAt, p.Type }).ToList());
             });
 
-            app.MapGet("/api/posts/{slug}", async (string slug, [FromServices] PostService postService) =>
+            app.MapGet("/api/posts/{slug}", async (string slug, [FromServices] IPostService postService) =>
             {
                 var post = await postService.GetPostBySlugAsync(slug);
                 if (post == null || post.Status != PostStatus.Published) return Results.NotFound();
                 return Results.Ok(new { post.Id, post.Title, post.Slug, post.Content, post.Excerpt, post.AuthorUsername, post.PublishedAt, post.Type });
             });
 
-            app.MapGet("/api/stats", async (HttpRequest request, HttpResponse response, UserService userService, [FromServices] AuthenticationService authService) =>
+            app.MapGet("/api/stats", async (HttpRequest request, HttpResponse response, IUserService userService, [FromServices] IAuthenticationService authService) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
                 try
@@ -518,7 +492,7 @@ namespace SharpPress
 
             app.MapGet("/api/cache/stats", (
                 HttpRequest request,
-                [FromServices] AuthenticationService authService) =>
+                [FromServices] IAuthenticationService authService) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
 
@@ -528,7 +502,7 @@ namespace SharpPress
 
             app.MapPost("/api/cache/clear", (
                 HttpRequest request,
-                [FromServices] AuthenticationService authService,
+                [FromServices] IAuthenticationService authService,
                 Logger logger) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
@@ -540,7 +514,7 @@ namespace SharpPress
 
             app.MapGet("/api/settings", async (
                 HttpRequest request,
-                [FromServices] AuthenticationService authService,
+                [FromServices] IAuthenticationService authService,
                 [FromServices] ConfigManager configManager) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
@@ -579,8 +553,9 @@ namespace SharpPress
             app.MapPost("/api/settings", async (
                 HttpRequest request,
                 [FromBody] SiteSettings settings,
-                [FromServices] AuthenticationService authService,
+                [FromServices] IAuthenticationService authService,
                 [FromServices] ConfigManager configManager,
+                [FromServices] IEventBus eventBus,
                 Logger logger) =>
             {
                 if (!ValidateAdmin(request, authService)) return Results.Unauthorized();
@@ -589,11 +564,16 @@ namespace SharpPress
 
                 try
                 {
+                    var saving = new SettingsSavingEvent(settings);
+                    if (!await eventBus.PublishCancellableAsync(saving))
+                        return Results.BadRequest(new { success = false, message = saving.CancelReason ?? "Saving the settings was cancelled by a plugin." });
+
                     configManager.Config.SiteSettings = settings;
                     if (configManager.Config.SiteSettings.Advanced != null)
                         SetCacheEnabled(configManager.Config.SiteSettings.Advanced.EnableCache);
 
                     await configManager.SaveConfig();
+                    await eventBus.PublishAsync(new SettingsUpdatedEvent(settings, "api"));
 
                     logger.Log($"⚙️ Settings updated by admin.");
                     return Results.Ok(new { success = true, message = "Settings saved successfully." });

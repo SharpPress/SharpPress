@@ -9,7 +9,7 @@ using SharpPress.Services;
 
 namespace SharpPress.Services
 {
-    public class ValidationService
+    public class ValidationService : IValidationService
     {
         private readonly ServerConfig _config;
         private readonly Logger _logger;

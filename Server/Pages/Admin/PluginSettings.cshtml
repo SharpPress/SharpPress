@@ -1,0 +1,81 @@
+@page "/admin/plugin-settings/{name}"
+@using System.ComponentModel.DataAnnotations
+@using SharpPress.Plugins
+@model SharpPress.Pages.PluginSettingsModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = Model.Section?.Title ?? "Plugin Settings";
+}
+
+<style>
+    .ps-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1.5rem; max-width: 640px; }
+    .ps-field { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.1rem; }
+    .ps-field label { font-size: 0.85rem; color: var(--text-muted); }
+    .ps-field input[type=text], .ps-field input[type=number], .ps-field input[type=password], .ps-field select, .ps-field textarea {
+        background: var(--bg-input); border: 1px solid var(--border-subtle); color: var(--text-main); border-radius: var(--radius-md); padding: 0.6rem 0.75rem; font: inherit;
+    }
+    .ps-field textarea { min-height: 120px; resize: vertical; }
+    .ps-actions { display: flex; gap: 0.75rem; }
+    .ps-button { background: var(--primary); color: #fff; border: 0; border-radius: var(--radius-md); padding: 0.6rem 1.2rem; cursor: pointer; font: inherit; }
+    .ps-status { margin-bottom: 1rem; color: var(--success); }
+</style>
+
+@if (Model.Section != null && Model.Values != null)
+{
+    <h2 style="color: var(--text-white); margin-bottom: 1rem;">@Model.Section.Title</h2>
+
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="ps-status">@Model.StatusMessage</div>
+    }
+
+    <form method="post" class="ps-card">
+        @foreach (var property in PluginSettingsStore.EditableProperties(Model.Section.SettingsType))
+        {
+            var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+            var display = property.GetCustomAttributes(typeof(DisplayAttribute), true).FirstOrDefault() as DisplayAttribute;
+            var dataType = property.GetCustomAttributes(typeof(DataTypeAttribute), true).FirstOrDefault() as DataTypeAttribute;
+            var label = display?.Name ?? property.Name;
+            var value = property.GetValue(Model.Values);
+
+            <div class="ps-field">
+                @if (type == typeof(bool))
+                {
+                    <label>
+                        <input type="checkbox" name="@property.Name" value="true" checked="@(value is true)" />
+                        @label
+                    </label>
+                }
+                else if (type.IsEnum)
+                {
+                    <label>@label</label>
+                    <select name="@property.Name">
+                        @foreach (var option in Enum.GetNames(type))
+                        {
+                            <option value="@option" selected="@(value?.ToString() == option)">@option</option>
+                        }
+                    </select>
+                }
+                else if (dataType?.DataType == DataType.MultilineText)
+                {
+                    <label>@label</label>
+                    <textarea name="@property.Name">@value</textarea>
+                }
+                else if (type == typeof(string))
+                {
+                    <label>@label</label>
+                    <input type="@(dataType?.DataType == DataType.Password ? "password" : "text")" name="@property.Name" value="@value" />
+                }
+                else
+                {
+                    <label>@label</label>
+                    <input type="number" step="any" name="@property.Name" value="@(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture))" />
+                }
+            </div>
+        }
+
+        <div class="ps-actions">
+            <button type="submit" class="ps-button">Save</button>
+        </div>
+    </form>
+}

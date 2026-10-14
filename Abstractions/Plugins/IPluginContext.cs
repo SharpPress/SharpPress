@@ -1,43 +1,31 @@
-﻿using SharpPress.Services;
-using System.Reflection;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using SharpPress.Services;
 
 namespace SharpPress.Plugins
 {
-    /// <summary>
-    /// Provides a secure API for plugins to interact with the core application.
-    /// </summary>
     public interface IPluginContext
     {
-        Logger Logger { get; }
-
-        /// <summary>
-        /// Service provider to get access to core services.
-        /// </summary>
+        IPluginLogger Logger { get; }
         IServiceProvider ServiceProvider { get; }
-
-        /// <summary>
-        /// Factory to create scopes for Scoped services (used internally by GetService).
-        /// </summary>
         IServiceScopeFactory ScopeFactory { get; }
-
-        /// <summary>
-        /// Adds an button to the admin sidebar menu.
-        /// </summary>
+        IPluginServices Services { get; }
+        IPluginEvents Events { get; }
+        IPluginFilters Filters { get; }
+        IPluginSettings Settings { get; }
+        IPluginScheduler Scheduler { get; }
+        IPluginDatabase Database { get; }
+        IPluginMeta PostMeta { get; }
+        CancellationToken PluginStopping { get; }
+        string DataDirectory { get; }
+        string PluginDirectory { get; }
         void RegisterAdminMenuItem(string name, string iconSvg, string url, int order = 0);
-
-        /// <summary>
-        /// Maps a GET route. 
-        /// </summary>
+        void RegisterDashboardWidget(string title, Func<Task<string>> render, int order = 0);
         void MapGet(string pattern, Delegate handler);
-
-        /// <summary>
-        /// Maps a POST route.
-        /// </summary>
         void MapPost(string pattern, Delegate handler);
-
-        /// <summary>
-        /// Maps a generic route (PUT, DELETE, etc).
-        /// </summary>
         void Map(string pattern, Delegate handler);
+        void MapRoute(string method, string pattern, Delegate handler, PluginRouteOptions? options = null);
+        void UseMiddleware(Func<HttpContext, Func<Task>, Task> middleware, int order = 0);
+        void MapStaticFiles(string requestPath, string directory);
     }
 }

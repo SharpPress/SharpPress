@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SharpPress.Models;
 using SharpPress.Services;
@@ -7,19 +7,30 @@ namespace SharpPress.Pages
 {
     public class PluginsModel : PageModel
     {
-        private readonly UserService userService;
+        private readonly IUserService userService;
         private readonly PluginManager pluginManager;
 
-        public PluginsModel(UserService _userService, PluginManager _pluginManager)
+        [TempData]
+        public string? StatusMessage { get; set; }
+
+        [TempData]
+        public bool StatusIsError { get; set; }
+
+        public PluginsModel(IUserService _userService, PluginManager _pluginManager)
         {
             userService = _userService;
             pluginManager = _pluginManager;
         }
 
-        public async Task<IActionResult> OnGet()
+        private async Task<User?> RequireAdminAsync()
         {
             var user = await userService.GetUserAsync(User);
-            if (user == null || !user.HasRole(UserRole.Admin))
+            return user != null && user.HasRole(UserRole.Admin) ? user : null;
+        }
+
+        public async Task<IActionResult> OnGet()
+        {
+            if (await RequireAdminAsync() == null)
                 return RedirectToPage("/Login");
 
             return Page();
@@ -27,41 +38,57 @@ namespace SharpPress.Pages
 
         public async Task<IActionResult> OnPostUpload(IFormFile pluginFile)
         {
-            if (pluginFile != null && pluginFile.FileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            var admin = await RequireAdminAsync();
+            if (admin == null)
+                return RedirectToPage("/Login");
+
+            if (pluginFile == null || !pluginFile.FileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
             {
-                var filePath = Path.Combine("plugins", pluginFile.FileName);
-                var pluginEntry = pluginManager.PluginToAssemblyPath.Where(p => p.Value == filePath).FirstOrDefault();
-                var pluginName = pluginEntry.Equals(default(KeyValuePair<string, string>)) ? null : pluginEntry.Key;
-
-                if (System.IO.File.Exists(filePath) && !string.IsNullOrWhiteSpace(pluginName))
-                {
-                    await pluginManager.UnloadPluginAsync(pluginName);
-                    System.IO.File.Delete(filePath);
-                }
-
-                using var stream = new FileStream(filePath, FileMode.Create);
-                await pluginFile.CopyToAsync(stream);
-
-                await pluginManager.LoadPluginFromFileAsync(filePath);
+                StatusMessage = "Choose a plugin .dll file.";
+                StatusIsError = true;
+                return RedirectToPage();
             }
 
-            return Page();
+            using var buffer = new MemoryStream();
+            await pluginFile.CopyToAsync(buffer);
+
+            var result = await pluginManager.InstallPluginAsync(Path.GetFileName(pluginFile.FileName), buffer.ToArray(), admin.Username);
+            StatusMessage = result.Success ? $"Plugin '{result.PluginName}' is installed." : $"Plugin could not be installed: {result.Message}";
+            StatusIsError = !result.Success;
+            return RedirectToPage();
         }
 
         public async Task<IActionResult> OnPostEnableAsync(string name)
         {
-            if (await pluginManager.EnablePluginAsync(name))
-                return Page();
-            else
-                return StatusCode(500, "Server error! please try again.");
+            if (await RequireAdminAsync() == null)
+                return RedirectToPage("/Login");
+
+            var ok = await pluginManager.EnablePluginAsync(name);
+            StatusMessage = ok ? $"Plugin '{name}' enabled." : $"Plugin '{name}' could not be enabled. See the server log.";
+            StatusIsError = !ok;
+            return RedirectToPage();
         }
 
         public async Task<IActionResult> OnPostDisableAsync(string name)
         {
-            if (await pluginManager.DisablePluginAsync(name))
-                return Page();
-            else
-                return StatusCode(500, "Server error! please try again.");
+            if (await RequireAdminAsync() == null)
+                return RedirectToPage("/Login");
+
+            var ok = await pluginManager.DisablePluginAsync(name);
+            StatusMessage = ok ? $"Plugin '{name}' disabled." : $"Plugin '{name}' could not be disabled.";
+            StatusIsError = !ok;
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostRemoveAsync(string name)
+        {
+            if (await RequireAdminAsync() == null)
+                return RedirectToPage("/Login");
+
+            var ok = await pluginManager.RemovePluginAsync(name);
+            StatusMessage = ok ? $"Plugin '{name}' removed." : $"Plugin '{name}' could not be removed.";
+            StatusIsError = !ok;
+            return RedirectToPage();
         }
     }
 }

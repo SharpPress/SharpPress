@@ -8,10 +8,10 @@ namespace SharpPress.Pages
 {
     public class PostsModel : PageModel
     {
-        private readonly PostService _postService;
-        private readonly UserService _userService;
+        private readonly IPostService _postService;
+        private readonly IUserService _userService;
 
-        public PostsModel(PostService postService, UserService userService)
+        public PostsModel(IPostService postService, IUserService userService)
         {
             _postService = postService;
             _userService = userService;

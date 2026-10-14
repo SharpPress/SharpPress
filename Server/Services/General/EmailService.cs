@@ -5,7 +5,7 @@ using SharpPress.Models;
 
 namespace SharpPress.Services;
 
-public class EmailService
+public class EmailService : IEmailService
 {
     private readonly string _host;
     private readonly int _port;

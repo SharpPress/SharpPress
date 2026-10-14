@@ -8,10 +8,10 @@ namespace SharpPress.Pages
 {
     public class CategoriesModel : PageModel
     {
-        private readonly TaxonomyService _taxonomyService;
-        private readonly UserService _userService;
+        private readonly ITaxonomyService _taxonomyService;
+        private readonly IUserService _userService;
 
-        public CategoriesModel(TaxonomyService taxonomyService, UserService userService)
+        public CategoriesModel(ITaxonomyService taxonomyService, IUserService userService)
         {
             _taxonomyService = taxonomyService;
             _userService = userService;

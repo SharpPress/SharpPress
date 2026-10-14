@@ -1,16 +1,13 @@
-﻿using MimeKit;
 using Newtonsoft.Json;
-using System.Text;
 using SharpPress.Plugins;
-using SharpPress.Services;
+using System.Text;
 
 namespace SharpPress.Services
 {
     public class PackageManager
     {
-        private Logger _logger;
-        private PluginManager _pluginManager;
-        private string _pluginsFolder = Path.Combine(AppContext.BaseDirectory, "plugins");
+        private readonly Logger _logger;
+        private readonly PluginManager _pluginManager;
 
         public PackageManager(Logger logger, PluginManager pluginManager)
         {
@@ -18,78 +15,114 @@ namespace SharpPress.Services
             _pluginManager = pluginManager;
         }
 
-
-        public async Task<bool> InstallPackage(Package package)
+        public async Task<PluginLoadResult> InstallPackage(Package package, string installedBy = "")
         {
             try
             {
-                if (package == null || package.PluginDllData == null || package.Name == null) return false;
+                if (package == null || package.PluginDllData == null || package.PluginDllData.Length == 0 || string.IsNullOrWhiteSpace(package.Name))
+                    return new PluginLoadResult(false, "Invalid package.");
 
-                var existingPlugin = _pluginManager.GetLoadedPlugins().FirstOrDefault(p => p.Key == package.Name, new KeyValuePair<string, IPlugin>("", null));
-                if (existingPlugin.Value == null)
+                if (!PluginPaths.IsSafeName(package.Name))
+                    return new PluginLoadResult(false, "Invalid package name.");
+
+                var root = PluginPaths.EnsureRoot();
+                var existing = _pluginManager.PluginToAssemblyPath
+                    .Where(p => Path.GetFileNameWithoutExtension(p.Value).Equals(package.Name, StringComparison.OrdinalIgnoreCase))
+                    .Select(p => p.Value)
+                    .FirstOrDefault();
+
+                var pluginFolder = existing != null
+                    ? Path.GetDirectoryName(existing)!
+                    : Path.Combine(root, package.Name);
+
+                if (!PluginPaths.IsInside(root, Path.Combine(pluginFolder, "x")))
+                    return new PluginLoadResult(false, "Invalid package location.");
+
+                Directory.CreateDirectory(pluginFolder);
+
+                foreach (var file in package.FileDataList)
                 {
-                    await WritePackageFilesAsync(package);
-                    await File.WriteAllBytesAsync(Path.Combine(_pluginsFolder, $"{package.Name}.dll"), package.PluginDllData);
+                    var normalized = file.Key.Replace('\\', '/').TrimStart('/');
+                    var destination = Path.GetFullPath(Path.Combine(pluginFolder, normalized));
 
-                    var tempDir = Path.Combine(Path.GetFullPath(_pluginsFolder), ".plugin_temp");
-                    await _pluginManager.LoadPluginFromFileAsync(Path.Combine(_pluginsFolder, $"{package.Name}.dll"), tempDir);
+                    if (string.IsNullOrWhiteSpace(normalized) || !PluginPaths.IsInside(pluginFolder, destination))
+                        return new PluginLoadResult(false, $"Package contains an illegal path: {file.Key}");
 
-                    return true;
+                    var extension = Path.GetExtension(destination);
+                    if (extension.Equals(".dll", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(destination).Equals(package.Name + ".dll", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    await File.WriteAllBytesAsync(destination, file.Value);
                 }
-                else
+
+                var targetDll = existing != null ? Path.GetFileName(existing) : package.Name + ".dll";
+
+                if (existing == null)
                 {
-                    await WritePackageFilesAsync(package);
-
-                    var tempFilePath = Path.Combine(_pluginsFolder, $"{package.Name}.tmp");
-                    var finalFilePath = Path.Combine(_pluginsFolder, $"{package.Name}.dll");
-                    await File.WriteAllBytesAsync(tempFilePath, package.PluginDllData);
-                    await _pluginManager.UnloadAllPluginsAsync();
-
-                    if (File.Exists(finalFilePath))
-                    {
-                        File.Delete(finalFilePath);
-                    }
-                    File.Move(tempFilePath, finalFilePath);
-
-                    await _pluginManager.ReloadAllPluginsAsync();
-
-                    return true;
+                    var target = Path.Combine(pluginFolder, targetDll);
+                    if (!PluginPaths.IsInside(root, target))
+                        return new PluginLoadResult(false, "Invalid package location.");
                 }
+
+                return await InstallIntoFolderAsync(pluginFolder, targetDll, package.PluginDllData, installedBy);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex.Message);
-                return false;
+                _logger.LogError($"Package install failed: {ex.Message}");
+                return new PluginLoadResult(false, ex.Message);
             }
         }
 
-        public async Task<Package> GetPackageFromByteArray(byte[] data)
+        private async Task<PluginLoadResult> InstallIntoFolderAsync(string folder, string dllName, byte[] data, string installedBy)
+        {
+            var root = PluginPaths.Root.TrimEnd(Path.DirectorySeparatorChar);
+            var isTopLevel = folder.TrimEnd(Path.DirectorySeparatorChar).Equals(root, StringComparison.OrdinalIgnoreCase);
+
+            if (isTopLevel)
+                return await _pluginManager.InstallPluginAsync(dllName, data, installedBy);
+
+            var path = Path.Combine(folder, dllName);
+            var temp = path + ".tmp";
+            var previous = File.Exists(path) ? await File.ReadAllBytesAsync(path) : null;
+
+            await File.WriteAllBytesAsync(temp, data);
+            File.Move(temp, path, overwrite: true);
+
+            var result = await _pluginManager.LoadPluginFromFileAsync(path);
+
+            if (!result.Success)
+            {
+                try
+                {
+                    if (previous != null) await File.WriteAllBytesAsync(path, previous);
+                    else File.Delete(path);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"Could not roll back package file: {ex.Message}");
+                }
+            }
+
+            return result;
+        }
+
+        public Task<Package?> GetPackageFromByteArray(byte[] data)
         {
             try
             {
                 var json = Encoding.UTF8.GetString(data);
-                if (string.IsNullOrWhiteSpace(json)) return null;
+                if (string.IsNullOrWhiteSpace(json)) return Task.FromResult<Package?>(null);
 
                 var package = JsonConvert.DeserializeObject<Package>(json);
-                if (package == null || package.PluginDllData == null || package.Name == null) return null;
+                if (package == null || package.PluginDllData == null || package.Name == null) return Task.FromResult<Package?>(null);
 
-                return package;
+                return Task.FromResult<Package?>(package);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-                return null;
-            }
-        }
-
-        private async Task WritePackageFilesAsync(Package package)
-        {
-            if (package.FileDataList.Count > 0)
-            {
-                var pluginFolder = Path.Combine(_pluginsFolder, package.Name);
-                Directory.CreateDirectory(pluginFolder);
-                foreach (var fileData in package.FileDataList)
-                    await File.WriteAllBytesAsync(Path.Combine(pluginFolder, fileData.Key), fileData.Value);
+                return Task.FromResult<Package?>(null);
             }
         }
     }

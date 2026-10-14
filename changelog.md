@@ -2,6 +2,28 @@
 
 All notable changes to SharpPress will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- Plugin contracts moved to the new `SharpPress.Abstractions` assembly. Plugins must reference it instead of the server assembly and rebuild against plugin API version 1.
+- Plugin loading rewritten: plugins are loaded from memory (DLLs are never locked), replaced atomically with automatic rollback, unloaded completely with everything they registered, and watched on disk for hot add, replace and delete.
+- Core services are now registered by interface (`IPostService`, `IUserService`, `IMediaService`, `ITaxonomyService`, `IEmailService`, `ICacheService`, `IAuthenticationService`, `IValidationService`, `IVideoStreamingService`) and can be replaced or decorated by plugins at runtime.
+- Plugin routes are real endpoints with HTTP verbs, route parameters and dependency injection.
+- Plugin paths are resolved from the application directory everywhere.
+
+### Added
+- Plugin context: events, filters and shortcodes, settings with generated admin form, post meta fields, scheduler, plugin database with migrations, dashboard widgets, hot middleware, static files, service replacement.
+- Cancellable events for post, user, login, media and settings actions; previously unused events are now published.
+- Scheduled posts are published automatically.
+- `Samples/SamplePlugin` buildable sample plugin with a live "Sample feature check" admin page covering every plugin feature.
+- Plugins that ship MVC controllers or Razor Pages now unload completely: the host clears the framework caches that pin plugin types (see `docs/PluginUnloading.md`).
+- Remove action for plugins in the admin panel and visible load errors.
+
+### Fixed
+- Plugin upload, enable, disable and store install now require an admin.
+- Package installs reject paths outside the plugin folder; store downloads verify an optional SHA-256 checksum and the minimum version.
+- Disabling and re-enabling a plugin no longer leaves a half-unloaded plugin behind.
+
 ## [1.0.0] - 2026-05-22
 
 ### Added

@@ -22,13 +22,23 @@ namespace SharpPress
     {
         public static Version Version { get; private set; } = new Version() { Major = 1, Minor = 2, Patch = 1 };
 
-        public static async Task<Version?> ToVersion(string version)
+        public static Task<Version?> ToVersion(string? version)
         {
-            var splited = version.Split(".");
-            if (splited.Length <= 0 || splited.Length > 3)
-                return null;
+            if (string.IsNullOrWhiteSpace(version))
+                return Task.FromResult<Version?>(null);
 
-            return new Version() { Major = Convert.ToInt32(splited[0]), Minor = Convert.ToInt32(splited[1]), Patch = Convert.ToInt32(splited[2]) };
+            var parts = version.Trim().TrimStart('v', 'V').Split('.');
+            if (parts.Length == 0 || parts.Length > 3)
+                return Task.FromResult<Version?>(null);
+
+            var numbers = new int[3];
+            for (var i = 0; i < parts.Length; i++)
+            {
+                if (!int.TryParse(parts[i], out numbers[i]))
+                    return Task.FromResult<Version?>(null);
+            }
+
+            return Task.FromResult<Version?>(new Version() { Major = numbers[0], Minor = numbers[1], Patch = numbers[2] });
         }
 
         public static async Task<bool> IsNewer(Version version)
@@ -117,28 +127,37 @@ namespace SharpPress
             builder.Services.AddHttpClient();
             builder.Services.AddHttpContextAccessor();
 
-            builder.Services.AddSingleton(provider => new EmailService(config: provider.GetRequiredService<ConfigManager>().Config));
+            builder.Services.AddSingleton<ServiceOverrideRegistry>();
+            builder.Services.AddOverridable<IEmailService, EmailService>(provider => new EmailService(config: provider.GetRequiredService<ConfigManager>().Config));
             builder.Services.AddSingleton<FilePaths>();
             builder.Services.AddSingleton(provider => new ServerSettings { httpPort = httpPort });
-            builder.Services.AddSingleton<CacheService>();
+            builder.Services.AddOverridable<ICacheService, CacheService>();
             builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
             builder.Services.AddSingleton<PluginStateService>();
             builder.Services.AddSingleton<PluginActionDescriptorChangeProvider>();
             builder.Services.AddSingleton<IActionDescriptorChangeProvider>(sp => sp.GetRequiredService<PluginActionDescriptorChangeProvider>());
             builder.Services.AddSingleton<Services.EventHandler>();
-            builder.Services.AddSingleton(provider => new FeatherDatabase(loggerAdapter, provider.GetRequiredService<ConfigManager>().Config.MySQL_Config));
-            builder.Services.AddSingleton<UserService>();
+            builder.Services.AddSingleton(provider => new FeatherDatabase(loggerAdapter, provider.GetRequiredService<ConfigManager>().Config.MySQL_Config, provider.GetRequiredService<ConfigManager>().Config));
+            builder.Services.AddOverridable<IUserService, UserService>();
             builder.Services.AddSingleton<WebSocketServer>();
-            builder.Services.AddSingleton<ValidationService>();
+            builder.Services.AddOverridable<IValidationService, ValidationService>();
             builder.Services.AddSingleton<PluginManager>();
+            builder.Services.AddSingleton<PluginEndpointDataSource>();
+            builder.Services.AddSingleton<RazorCacheCleaner>();
+            builder.Services.AddSingleton<PluginSettingsStore>();
+            builder.Services.AddOverridable<IScheduler, SchedulerService>();
+            builder.Services.AddSingleton<PluginMiddlewareRegistry>();
             builder.Services.AddSingleton<DownloadJobProcessor>();
-            builder.Services.AddSingleton<AuthenticationService>();
+            builder.Services.AddOverridable<IAuthenticationService, AuthenticationService>();
             builder.Services.AddSingleton<PackageManager>();
-            builder.Services.AddSingleton<VideoStreamingService>();
+            builder.Services.AddOverridable<IVideoStreamingService, VideoStreamingService>();
             builder.Services.AddSingleton<IAdminMenuService, AdminMenuService>();
-            builder.Services.AddSingleton<PostService>();
-            builder.Services.AddSingleton<TaxonomyService>();
-            builder.Services.AddSingleton<MediaService>();
+            builder.Services.AddOverridable<IFilterPipeline, FilterPipeline>();
+            builder.Services.AddOverridable<IPostMetaService, PostMetaService>();
+            builder.Services.AddOverridable<IDashboardService, DashboardService>();
+            builder.Services.AddOverridable<IPostService, PostService>();
+            builder.Services.AddOverridable<ITaxonomyService, TaxonomyService>();
+            builder.Services.AddOverridable<IMediaService, MediaService>();
 
             builder.Services.AddAuthentication(options =>
             {
@@ -210,25 +229,13 @@ namespace SharpPress
 
             pluginManager.Initialize(applicationPartManager, env);
 
-            var tempPluginPath = Path.Combine(AppContext.BaseDirectory, "plugins", ".plugin_temp");
-            if (Directory.Exists(tempPluginPath))
-            {
-                try
-                {
-                    Directory.Delete(tempPluginPath, true);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError($"Failed to clean temp plugin dir: {ex.Message}");
-                }
-            }
-
             await pluginManager.LoadPluginsAsync();
             await Endpoints.RegisterServices(serviceProvider.GetRequiredService<ServerConfig>());
 
             app.MapControllers();
             app.MapRazorPages();
             app.MapHealthChecks("/health");
+            ((IEndpointRouteBuilder)app).DataSources.Add(serviceProvider.GetRequiredService<PluginEndpointDataSource>());
 
             Endpoints.Map(app, pluginManager);
 
@@ -251,12 +258,20 @@ namespace SharpPress
                     if (app.Lifetime.ApplicationStopping.IsCancellationRequested)
                         break;
 
-                    await Task.Delay(50, app.Lifetime.ApplicationStopping);
+                    await Task.Delay(250, app.Lifetime.ApplicationStopping);
                     await pluginManager.UpdateLoadedPluginsAsync();
                 }
             });
 
-            await PrepareDatabase(serviceProvider.GetRequiredService<FeatherDatabase>(), logger);
+            var database = serviceProvider.GetRequiredService<FeatherDatabase>();
+            await PrepareDatabase(database, logger);
+
+            serviceProvider.GetRequiredService<IScheduler>().Every("core:publish-scheduled-posts", TimeSpan.FromMinutes(1), async _ =>
+            {
+                if (database.IsConfigured)
+                    await serviceProvider.GetRequiredService<IPostService>().PublishScheduledPostsAsync();
+            });
+
             await app.RunAsync();
         }
 
@@ -273,6 +288,8 @@ namespace SharpPress
                 await database.CreateIndex<Category>("Slug");
                 await database.CreateTable<Tag>();
                 await database.CreateIndex<Tag>("Slug");
+                await database.CreateTable<PostMeta>();
+                await database.CreateIndex<PostMeta>("PostId");
                 await database.CreateTable<PostCategory>();
                 await database.CreateIndex<PostCategory>("PostId");
                 await database.CreateIndex<PostCategory>("CategoryId");

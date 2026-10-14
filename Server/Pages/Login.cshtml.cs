@@ -14,13 +14,13 @@ namespace SharpPress.Pages
 
         private readonly Logger _logger;
         private readonly FeatherDatabase _database;
-        private readonly AuthenticationService _authService;
+        private readonly IAuthenticationService _authService;
 
         public string? SuccessMessage { get; set; }
         public string? ErrorMessage { get; set; }
         public bool ShowTwoFactor { get; set; }
 
-        public LoginModel(FeatherDatabase database, AuthenticationService authService, Logger logger)
+        public LoginModel(FeatherDatabase database, IAuthenticationService authService, Logger logger)
         {
             _database = database;
             _authService = authService;

@@ -11,11 +11,11 @@ namespace SharpPress.Pages
 {
     public class AdminModel : PageModel
     {
-        private readonly UserService _userService;
+        private readonly IUserService _userService;
         private readonly PluginManager _pluginManager;
         private readonly FeatherDatabase database;
 
-        public AdminModel(UserService userService, PluginManager pluginManager, FeatherDatabase _database)
+        public AdminModel(IUserService userService, PluginManager pluginManager, FeatherDatabase _database)
         {
             _userService = userService;
             _pluginManager = pluginManager;

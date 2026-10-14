@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using SharpPress.Events;
 using SharpPress.Models;
 using SharpPress.Services;
 
@@ -8,12 +9,14 @@ namespace SharpPress.Pages
     public class SettingsModel : PageModel
     {
         private readonly ConfigManager _configManager;
-        private readonly UserService _userService;
+        private readonly IUserService _userService;
+        private readonly IEventBus _eventBus;
 
-        public SettingsModel(ConfigManager configManager, UserService userService)
+        public SettingsModel(ConfigManager configManager, IUserService userService, IEventBus eventBus)
         {
             _configManager = configManager;
             _userService = userService;
+            _eventBus = eventBus;
         }
 
         [BindProperty]
@@ -55,7 +58,7 @@ namespace SharpPress.Pages
             ActiveTab = activeTab;
             ModelState.Clear();
 
-            _configManager.Config.SiteSettings = new SiteSettings
+            var newSettings = new SiteSettings
             {
                 General = new GeneralSettings
                 {
@@ -80,9 +83,18 @@ namespace SharpPress.Pages
                 }
             };
 
+            var saving = new SettingsSavingEvent(newSettings);
+            if (!await _eventBus.PublishCancellableAsync(saving))
+            {
+                TempData["ErrorMessage"] = saving.CancelReason ?? "Saving the settings was cancelled by a plugin.";
+                return RedirectToPage("/Admin/Settings", new { tab = activeTab });
+            }
+
+            _configManager.Config.SiteSettings = newSettings;
             _configManager.Config.PanelDomain = ConfigManager.NormalizeUrl(Input.SiteUrl);
 
             await _configManager.SaveConfig();
+            await _eventBus.PublishAsync(new SettingsUpdatedEvent(newSettings, user.Username));
             TempData["SuccessMessage"] = "Settings updated successfully.";
 
             return RedirectToPage("/Admin/Settings", new { tab = activeTab });

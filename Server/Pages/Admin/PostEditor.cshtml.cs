@@ -8,18 +8,25 @@ namespace SharpPress.Pages
 {
     public class PostEditorModel : PageModel
     {
-        private readonly PostService _postService;
-        private readonly TaxonomyService _taxonomyService;
-        private readonly MediaService _mediaService;
-        private readonly UserService _userService;
+        private readonly IPostService _postService;
+        private readonly ITaxonomyService _taxonomyService;
+        private readonly IMediaService _mediaService;
+        private readonly IUserService _userService;
+        private readonly IPostMetaService _metaService;
 
-        public PostEditorModel(PostService postService, TaxonomyService taxonomyService, MediaService mediaService, UserService userService)
+        public PostEditorModel(IPostService postService, ITaxonomyService taxonomyService, IMediaService mediaService, IUserService userService, IPostMetaService metaService)
         {
             _postService = postService;
             _taxonomyService = taxonomyService;
             _mediaService = mediaService;
             _userService = userService;
+            _metaService = metaService;
         }
+
+        [BindProperty]
+        public Dictionary<string, string> Meta { get; set; } = new();
+
+        public IReadOnlyList<MetaField> MetaFields => _metaService.Fields;
 
         [BindProperty]
         public Post Post { get; set; } = new();
@@ -58,6 +65,8 @@ namespace SharpPress.Pages
 
                 var postTags = await _postService.GetPostTagsAsync(id);
                 SelectedTagIds = postTags.Select(t => t.Id).ToList();
+
+                Meta = await _metaService.GetAllAsync(id);
             }
 
             return Page();
@@ -83,13 +92,34 @@ namespace SharpPress.Pages
 
             Post.AuthorUsername = User.Identity.Name;
 
-            if (Post.Id == 0)
+            try
             {
-                await _postService.CreatePostAsync(Post);
+                if (Post.Id == 0)
+                {
+                    await _postService.CreatePostAsync(Post);
+                }
+                else
+                {
+                    await _postService.UpdatePostAsync(Post);
+                }
             }
-            else
+            catch (EventCancelledException ex)
             {
-                await _postService.UpdatePostAsync(Post);
+                ModelState.AddModelError("Post.Title", ex.Message);
+                AllCategories = await _taxonomyService.GetAllCategoriesAsync();
+                AllTags = await _taxonomyService.GetAllTagsAsync();
+                MediaItems = await _mediaService.GetAllAsync();
+                return Page();
+            }
+
+            foreach (var field in _metaService.Fields)
+            {
+                Meta.TryGetValue(field.Key, out var submitted);
+
+                if (field.Type == MetaFieldType.Checkbox)
+                    await _metaService.SetAsync(Post.Id, field.Key, string.IsNullOrEmpty(submitted) ? "false" : "true");
+                else
+                    await _metaService.SetAsync(Post.Id, field.Key, string.IsNullOrEmpty(submitted) ? null : submitted);
             }
 
             if (SelectedCategoryIds != null && SelectedCategoryIds.Any())

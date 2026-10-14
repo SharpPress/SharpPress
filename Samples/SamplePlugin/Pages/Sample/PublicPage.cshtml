@@ -1,0 +1,23 @@
+@page "/sample/page"
+@model SamplePlugin.Pages.PublicPageModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>SamplePlugin public page</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #222; }
+        code { background: #eee; padding: 0.1rem 0.35rem; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>SamplePlugin</h1>
+    <p>This is a public Razor Page shipped inside the plugin DLL.</p>
+    <p>Rendered by the shortcode and filter pipeline: <strong>@Html.Raw(Model.Rendered)</strong></p>
+    <p>Greeting from the plugin settings: <code>@Model.Greeting</code></p>
+    <p><a href="/admin/sample">Open the feature check (admin)</a></p>
+</body>
+</html>

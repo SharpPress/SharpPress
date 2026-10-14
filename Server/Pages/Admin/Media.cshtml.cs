@@ -8,10 +8,10 @@ namespace SharpPress.Pages
 {
     public class MediaModel : PageModel
     {
-        private readonly MediaService _mediaService;
-        private readonly UserService _userService;
+        private readonly IMediaService _mediaService;
+        private readonly IUserService _userService;
 
-        public MediaModel(MediaService mediaService, UserService userService)
+        public MediaModel(IMediaService mediaService, IUserService userService)
         {
             _mediaService = mediaService;
             _userService = userService;

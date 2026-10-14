@@ -271,12 +271,12 @@ namespace SharpPress.Middlewares
         private readonly string _bannedPage = "";
         private readonly string _maintenancePage = "";
 
-        private readonly AuthenticationService _authService;
+        private readonly IAuthenticationService _authService;
         private readonly RequestDelegate _next;
         private readonly Logger _logger;
         private bool _isMaintenanceMode = false;
 
-        public UserControlMiddleware(RequestDelegate next, Logger logger, AuthenticationService authenticationService, ServerConfig config)
+        public UserControlMiddleware(RequestDelegate next, Logger logger, IAuthenticationService authenticationService, ServerConfig config)
         {
             _next = next;
             _logger = logger;
@@ -287,7 +287,7 @@ namespace SharpPress.Middlewares
             _maintenancePage = pre_maintenancePage.Replace("%support@mail%", config.SiteSettings?.General?.AdminEmail ?? $"support@{domain}");
         }
 
-        public async Task InvokeAsync(HttpContext context, FeatherDatabase database, ServerConfig config, UserService userService)
+        public async Task InvokeAsync(HttpContext context, FeatherDatabase database, ServerConfig config, IUserService userService)
         {
             _isMaintenanceMode = config.SiteSettings?.Advanced?.MaintenanceMode ?? false;
             var user = await userService.GetUserAsync(context.User);
