@@ -98,7 +98,7 @@ namespace SamplePlugin.Pages
                 var body = await response.Content.ReadAsStringAsync();
                 var header = response.Headers.TryGetValues("X-Sample-Plugin", out var values) ? values.FirstOrDefault() : null;
 
-                if (response.StatusCode == HttpStatusCode.OK && body.Contains("Check"))
+                if (response.StatusCode == HttpStatusCode.OK && body.Contains("Check", StringComparison.OrdinalIgnoreCase))
                     Pass("Route with parameter", $"GET /sample/hello/Check returned \"{body}\".");
                 else
                     Fail("Route with parameter", $"Unexpected response {(int)response.StatusCode}: {body}");

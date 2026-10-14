@@ -159,6 +159,7 @@ jobs:
             Server/server.log
             Server/tunnel.log
             Server/ngrok.log
+            Server/cloudflared.log
           if-no-files-found: ignore
 
       - name: Start public tunnel
@@ -176,6 +177,17 @@ jobs:
             nohup ./ngrok http 8080 --log stdout --authtoken "$NGROK_AUTHTOKEN" ${NGROK_DOMAIN:+--domain=$NGROK_DOMAIN} > ngrok.log 2>&1 &
             for i in $(seq 1 30); do
               url=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -oE '"public_url":"https://[^"]+"' | cut -d'"' -f4 | head -1)
+              if [ -n "$url" ]; then break; fi
+              sleep 2
+            done
+          fi
+
+          if [ -z "$url" ]; then
+            curl -sL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+            chmod +x cloudflared
+            nohup ./cloudflared tunnel --no-autoupdate --url http://127.0.0.1:8080 > cloudflared.log 2>&1 &
+            for i in $(seq 1 30); do
+              url=$(grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' cloudflared.log | head -1)
               if [ -n "$url" ]; then break; fi
               sleep 2
             done
@@ -209,7 +221,9 @@ jobs:
             while true; do
               local_time=$(curl -s -o /dev/null -m 130 -w "%{time_total}" http://127.0.0.1:8080/nonexistent)
               tunnel_time=$(curl -s -o /dev/null -m 130 -w "%{time_total}" "$(cat tunnel.url)/nonexistent")
-              echo "[probe] direct=${local_time}s tunnel=${tunnel_time}s"
+              local_post=$(curl -s -o /dev/null -m 130 -X POST -d "probe=1" -w "%{time_total}" http://127.0.0.1:8080/nonexistent)
+              tunnel_post=$(curl -s -o /dev/null -m 130 -X POST -d "probe=1" -w "%{time_total}" "$(cat tunnel.url)/nonexistent")
+              echo "[probe] GET direct=${local_time}s tunnel=${tunnel_time}s | POST direct=${local_post}s tunnel=${tunnel_post}s"
               sleep 15
             done
           ) &
