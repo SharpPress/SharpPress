@@ -197,6 +197,7 @@ jobs:
           fi
 
           echo "$url" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" > tunnel.url
           echo "public url: $url"
 
       - name: Keep running until cancelled
@@ -204,4 +205,12 @@ jobs:
         working-directory: Server
         run: |
           echo "open the url from the step summary, cancel this run when you are done"
+          (
+            while true; do
+              local_time=$(curl -s -o /dev/null -m 130 -w "%{time_total}" http://127.0.0.1:8080/nonexistent)
+              tunnel_time=$(curl -s -o /dev/null -m 130 -w "%{time_total}" "$(cat tunnel.url)/nonexistent")
+              echo "[probe] direct=${local_time}s tunnel=${tunnel_time}s"
+              sleep 15
+            done
+          ) &
           tail -f server.log
