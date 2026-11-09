@@ -148,3 +148,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT
 ## License
 
 Released under the MIT License. See [LICENSE](LICENSE).
+
+## Sponsors
+
+[![Logo](https://pufferland.ir/favicon_48.png)](https://pufferland.ir)
