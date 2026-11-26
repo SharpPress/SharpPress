@@ -1,355 +1,70 @@
 ﻿@page "/admin"
 @model SharpPress.Pages.AdminModel
-@inject SharpPress.Services.IUserService _userService
 @inject SharpPress.Services.IDashboardService _dashboardService
-@inject SharpPress.Services.PluginManager _pluginManager
 
-@using System.Diagnostics
-@using System.Net.NetworkInformation
 @using System.Text.RegularExpressions
 
 @{
     Layout = "_AdminLayout";
     ViewData["Title"] = "Dashboard";
 
-    string logFile = System.IO.Path.Combine(AppContext.BaseDirectory, "logs", "latest.log");
-    string[] logs;
-    if (System.IO.File.Exists(logFile))
-    {
-        var lastLines = new Queue<string>(200);
-        foreach (var line in System.IO.File.ReadLines(logFile))
-        {
-            if (lastLines.Count == 200)
-            {
-                lastLines.Dequeue();
-            }
-            lastLines.Enqueue(line);
-        }
-        logs = lastLines.ToArray();
-    }
-    else
-    {
-        logs = Array.Empty<string>();
-    }
+    var logFile = System.IO.Path.Combine(AppContext.BaseDirectory, "logs", "latest.log");
+    var logs = System.IO.File.Exists(logFile)
+        ? System.IO.File.ReadLines(logFile).TakeLast(200).ToArray()
+        : Array.Empty<string>();
+    var logLevel = new Regex(@"\[(?<level>INFO|ERROR|WARNING|SECURITY)\]");
 
-    var logLevelRegex = new Regex(@"^\[[^\]]*\]\[(?<level>[^\]]+)\]", RegexOptions.Compiled);
+    var status = new (string Label, string Value)[]
+    {
+        ("Running for", Model.Uptime),
+        ("Processor", Model.CpuUsage + "%"),
+        ("Memory", Model.MemoryMB + " MB"),
+        ("Users", Model.Users.ToString()),
+        ("Plugins", Model.ActivePlugins.ToString()),
+        ("Disk", $"{Model.DiskUsedGB} of {Model.DiskTotalGB} GB"),
+        ("Network received", Model.NetReceivedMB + " MB"),
+        ("Network sent", Model.NetSentMB + " MB")
+    };
 }
 
-<style>
-    .dashboard-stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-        gap: 0.85rem;
-        margin-bottom: 1.25rem;
-    }
+<header class="page-header">
+    <h1>Dashboard</h1>
+    <a href="/admin/posts/0/edit" class="btn btn-primary">New post</a>
+</header>
 
-    .dashboard-stat-box {
-        background: var(--bg-card);
-        padding: 1rem 1.1rem;
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--border-subtle);
-        display: flex;
-        align-items: center;
-        gap: 0.9rem;
-    }
-
-    .stat-icon-wrap {
-        width: 34px;
-        height: 34px;
-        border-radius: var(--radius-md);
-        background: #2d333b;
-        color: #9aa4b1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-        .stat-icon-wrap svg {
-            width: 17px;
-            height: 17px;
-            stroke: currentColor;
-            fill: none;
-            stroke-width: 1.8;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-    .stat-content {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-
-    .dashboard-stat-label {
-        font-size: 0.7rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        font-weight: 600;
-        margin-bottom: 2px;
-    }
-
-    .dashboard-stat-value {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-white);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .dashboard-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-    }
-
-    .dashboard-card-header {
-        padding: 0.9rem 1.25rem;
-        border-bottom: 1px solid var(--border-subtle);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    }
-
-    .dashboard-card-title {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: var(--text-white);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-        .dashboard-card-title svg {
-            width: 15px;
-            height: 15px;
-            stroke: var(--text-muted);
-            fill: none;
-            stroke-width: 1.8;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-    .log-count-badge {
-        font-size: 0.7rem;
-        font-weight: 600;
-        padding: 3px 9px;
-        border-radius: 999px;
-        background: #2d333b;
-        color: var(--text-muted);
-    }
-
-    .dashboard-table-wrap {
-        max-height: 380px;
-        overflow-y: auto;
-        scrollbar-width: thin;
-        scrollbar-color: #2d333b transparent;
-    }
-
-        .dashboard-table-wrap::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .dashboard-table-wrap::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .dashboard-table-wrap::-webkit-scrollbar-thumb {
-            background: #2d333b;
-            border-radius: 4px;
-        }
-
-    .dashboard-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-        .dashboard-table td {
-            padding: 0.45rem 1.25rem;
-            border-bottom: 1px solid var(--border-subtle);
-            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-            font-size: 0.78rem;
-            color: #a8b3bf;
-            line-height: 1.55;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-
-        .dashboard-table tr:last-child td {
-            border-bottom: none;
-        }
-
-    .dashboard-alert {
-        padding: 2.5rem 1.75rem;
-        text-align: center;
-        color: var(--text-muted);
-        font-size: 0.9rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 12px;
-    }
-
-        .dashboard-alert svg {
-            width: 36px;
-            height: 36px;
-            stroke: #3d444d;
-            fill: none;
-            stroke-width: 1.5;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-    .dashboard-table td.log-info {
-        color: #c9d1d9;
-    }
-
-    .dashboard-table td.log-error {
-        color: #ff7b72;
-    }
-
-    .dashboard-table td.log-warning {
-        color: #e3b341;
-    }
-
-    .dashboard-table td.log-security {
-        color: #6cb2ff;
-    }
-
-    .dashboard-table td.log-custom {
-        color: #57ab5a;
-    }
-</style>
-
-<div class="dashboard-stats-grid">
-    <div class="dashboard-stat-box">
-        <div class="stat-icon-wrap icon-indigo">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-        </div>
-        <div class="stat-content">
-            <div class="dashboard-stat-label">Uptime</div>
-            <div class="dashboard-stat-value">@Model.Uptime</div>
-        </div>
-    </div>
-    <div class="dashboard-stat-box">
-        <div class="stat-icon-wrap icon-emerald">
-            <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2" /><rect x="9" y="9" width="6" height="6" /><line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" /><line x1="9" y1="20" x2="9" y2="23" /><line x1="15" y1="20" x2="15" y2="23" /><line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="14" x2="23" y2="14" /><line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="14" x2="4" y2="14" /></svg>
-        </div>
-        <div class="stat-content">
-            <div class="dashboard-stat-label">CPU Usage</div>
-            <div class="dashboard-stat-value">@Model.CpuUsage%</div>
-        </div>
-    </div>
-    <div class="dashboard-stat-box">
-        <div class="stat-icon-wrap icon-violet">
-            <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2" /><line x1="6" y1="12" x2="6.01" y2="12" /><line x1="10" y1="12" x2="10.01" y2="12" /></svg>
-        </div>
-        <div class="stat-content">
-            <div class="dashboard-stat-label">Ram Usage</div>
-            <div class="dashboard-stat-value">@Model.MemoryMB MB</div>
-        </div>
-    </div>
-    <div class="dashboard-stat-box">
-        <div class="stat-icon-wrap icon-sky">
-            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-        </div>
-        <div class="stat-content">
-            <div class="dashboard-stat-label">Users</div>
-            <div class="dashboard-stat-value">@Model.Users</div>
-        </div>
-    </div>
-    <div class="dashboard-stat-box">
-        <div class="stat-icon-wrap icon-amber">
-            <svg viewBox="0 0 24 24"><line x1="22" y1="12" x2="2" y2="12" /><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /><line x1="6" y1="16" x2="6.01" y2="16" /><line x1="10" y1="16" x2="10.01" y2="16" /></svg>
-        </div>
-        <div class="stat-content">
-            <div class="dashboard-stat-label">Disk Usage</div>
-            <div class="dashboard-stat-value">@Model.DiskUsedGB / @Model.DiskTotalGB GB</div>
-        </div>
-    </div>
-    <div class="dashboard-stat-box">
-        <div class="stat-icon-wrap icon-teal">
-            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-        </div>
-        <div class="stat-content">
-            <div class="dashboard-stat-label">Downloaded</div>
-            <div class="dashboard-stat-value">@Model.NetReceivedMB MB</div>
-        </div>
-    </div>
-    <div class="dashboard-stat-box">
-        <div class="stat-icon-wrap icon-cyan">
-            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-        </div>
-        <div class="stat-content">
-            <div class="dashboard-stat-label">Uploaded</div>
-            <div class="dashboard-stat-value">@Model.NetSentMB MB</div>
-        </div>
-    </div>
-    <div class="dashboard-stat-box">
-        <div class="stat-icon-wrap icon-rose">
-            <svg viewBox="0 0 24 24"><path d="M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66l4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66l4.24-4.24" /></svg>
-        </div>
-        <div class="stat-content">
-            <div class="dashboard-stat-label">Active Plugins</div>
-            <div class="dashboard-stat-value">@Model.ActivePlugins</div>
-        </div>
-    </div>
-</div>
-
-<div class="dashboard-card">
-    <div class="dashboard-card-header">
-        <div class="dashboard-card-title">
-            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
-            System Logs
-        </div>
-        @if (logs.Length > 0)
+<section class="card">
+    <h2 class="card-title">Server</h2>
+    <dl class="details">
+        @foreach (var item in status)
         {
-            <span class="log-count-badge">@logs.Length ENTRIES</span>
+            <dt>@item.Label</dt>
+            <dd>@item.Value</dd>
         }
-    </div>
-
-    @if (logs.Length <= 0)
-    {
-        <div class="dashboard-alert">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-            No logs available.
-        </div>
-    }
-    else
-    {
-        <div class="dashboard-table-wrap">
-            <table class="dashboard-table">
-                @foreach (var log in logs)
-                {
-                    var match = logLevelRegex.Match(log);
-                    var level = match.Success ? match.Groups["level"].Value : "";
-
-                    var cssClass = level switch
-                    {
-                        "INFO" => "log-info",
-                        "ERROR" => "log-error",
-                        "WARNING" => "log-warning",
-                        "SECURITY" => "log-security",
-                        _ => "log-custom"
-                    };
-
-                    <tr>
-                        <td class="@cssClass">@log</td>
-                    </tr>
-                }
-            </table>
-        </div>
-    }
-</div>
+    </dl>
+</section>
 
 @foreach (var widget in _dashboardService.Widgets)
 {
-    <div class="dashboard-panel" style="margin-top: 1.25rem;">
-        <h3 style="color: var(--text-white); margin-bottom: 0.75rem;">@widget.Title</h3>
+    <section class="card">
+        <h2 class="card-title">@widget.Title</h2>
         @Html.Raw(await widget.Render())
-    </div>
+    </section>
 }
+
+<details class="card">
+    <summary class="card-title">Server log</summary>
+    @if (logs.Length == 0)
+    {
+        <p class="field-help">No log entries yet.</p>
+    }
+    else
+    {
+        <div class="log" tabindex="0">
+            @foreach (var log in logs)
+            {
+                var level = logLevel.Match(log).Groups["level"].Value;
+                <p class="@(level == "ERROR" ? "error-text" : level == "WARNING" ? "warning-text" : null)">@log</p>
+            }
+        </div>
+    }
+</details>

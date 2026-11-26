@@ -1,28 +1,43 @@
-﻿@using Microsoft.AspNetCore.Http
-@inject IUserService userService
+﻿@inject IUserService userService
 @inject IAdminMenuService adminMenuService
 
 @{
-    var title = ViewData["Title"] ?? "Admin Panel";
-    var username = (await userService.GetUserAsync(User)).Username;
-    var currentPath = Context.Request.Path.Value?.ToLowerInvariant();
+    var title = ViewData["Title"] ?? "Admin";
+    var username = (await userService.GetUserAsync(User))?.Username ?? "";
+    var currentPath = Context.Request.Path.Value?.TrimEnd('/').ToLowerInvariant() ?? "";
 
-    var menuItems = new List<(string Name, string IconSvg, string Url, bool IsBuiltIn)>();
+    var dashboard = (Name: "Dashboard", Icon: @"<svg viewBox=""0 0 24 24""><path d=""M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"" /></svg>", Url: "/admin");
 
-    menuItems.Add(("Dashboard", @"<svg viewBox=""0 0 24 24""><polyline points=""22 12 18 12 15 21 9 3 6 12 2 12"" /></svg>", "/admin", true));
-    menuItems.Add(("Posts", @"<svg viewBox=""0 0 24 24""><path d=""M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"" /><path d=""M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"" /></svg>", "/admin/posts", true));
-    menuItems.Add(("Media", @"<svg viewBox=""0 0 24 24""><rect x=""3"" y=""3"" width=""18"" height=""18"" rx=""2"" ry=""2"" /><circle cx=""8.5"" cy=""8.5"" r=""1.5"" /><polyline points=""21 15 16 10 5 21"" /></svg>", "/admin/media", true));
-    menuItems.Add(("Categories", @"<svg viewBox=""0 0 24 24""><line x1=""8"" y1=""6"" x2=""21"" y2=""6"" /><line x1=""8"" y1=""12"" x2=""21"" y2=""12"" /><line x1=""8"" y1=""18"" x2=""21"" y2=""18"" /><line x1=""3"" y1=""6"" x2=""3.01"" y2=""6"" /><line x1=""3"" y1=""12"" x2=""3.01"" y2=""12"" /><line x1=""3"" y1=""18"" x2=""3.01"" y2=""18"" /></svg>", "/admin/categories", true));
-    menuItems.Add(("Tags", @"<svg viewBox=""0 0 24 24""><path d=""M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"" /><line x1=""7"" y1=""7"" x2=""7.01"" y2=""7"" /></svg>", "/admin/tags", true));
-
-    foreach (var item in adminMenuService.GetItems().OrderBy(i => i.Order))
+    var content = new List<(string Name, string Icon, string Url)>
     {
-        menuItems.Add((item.Name, item.IconSvg, item.Url, false));
-    }
+        ("Posts", @"<svg viewBox=""0 0 24 24""><path d=""M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"" /><path d=""M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"" /></svg>", "/admin/posts"),
+        ("Media", @"<svg viewBox=""0 0 24 24""><rect x=""3"" y=""3"" width=""18"" height=""18"" rx=""2"" /><circle cx=""8.5"" cy=""8.5"" r=""1.5"" /><polyline points=""21 15 16 10 5 21"" /></svg>", "/admin/media"),
+        ("Categories", @"<svg viewBox=""0 0 24 24""><path d=""M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"" /></svg>", "/admin/categories"),
+        ("Tags", @"<svg viewBox=""0 0 24 24""><path d=""M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"" /><path d=""M7 7h.01"" /></svg>", "/admin/tags")
+    };
 
-    menuItems.Add(("Plugins", @"<svg viewBox=""0 0 24 24""><path d=""M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66l4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66l4.24-4.24"" /></svg>", "/admin/plugins", true));
-    menuItems.Add(("Users", @"<svg viewBox=""0 0 24 24""><path d=""M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"" /><circle cx=""9"" cy=""7"" r=""4"" /><path d=""M23 21v-2a4 4 0 0 0-3-3.87"" /><path d=""M16 3.13a4 4 0 0 1 0 7.75"" /></svg>", "/admin/users", true));
-    menuItems.Add(("Settings", @"<svg viewBox=""0 0 24 24""><circle cx=""12"" cy=""12"" r=""3"" /><path d=""M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"" /></svg>", "/admin/settings", true));
+    var plugins = adminMenuService.GetItems().OrderBy(i => i.Order).Select(i => (Name: i.Name, Icon: i.IconSvg, Url: i.Url)).ToList();
+    plugins.Add(("Manage plugins", @"<svg viewBox=""0 0 24 24""><rect x=""3"" y=""3"" width=""7"" height=""7"" /><rect x=""14"" y=""3"" width=""7"" height=""7"" /><rect x=""3"" y=""14"" width=""7"" height=""7"" /><path d=""M17.5 14v7M14 17.5h7"" /></svg>", "/admin/plugins"));
+
+    var site = new List<(string Name, string Icon, string Url)>
+    {
+        ("Users", @"<svg viewBox=""0 0 24 24""><path d=""M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"" /><circle cx=""9"" cy=""7"" r=""4"" /><path d=""M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"" /></svg>", "/admin/users"),
+        ("Settings", @"<svg viewBox=""0 0 24 24""><path d=""M4 6h16M4 12h16M4 18h16"" /><circle cx=""9"" cy=""6"" r=""2"" /><circle cx=""15"" cy=""12"" r=""2"" /><circle cx=""8"" cy=""18"" r=""2"" /></svg>", "/admin/settings")
+    };
+
+    var groups = new[]
+    {
+        (Label: (string?)null, Items: new List<(string Name, string Icon, string Url)> { dashboard }),
+        (Label: (string?)"Content", Items: content),
+        (Label: (string?)"Plugins", Items: plugins),
+        (Label: (string?)"Site", Items: site)
+    };
+
+    bool IsCurrent(string url)
+    {
+        var target = url.TrimEnd('/').ToLowerInvariant();
+        return currentPath == target || (target != "/admin" && currentPath.StartsWith(target + "/"));
+    }
 }
 
 <!DOCTYPE html>
@@ -30,403 +45,76 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@title - SharpPress Admin</title>
-
-    <style>
-        :root {
-            --accent: #539bf5;
-            --bg-body: #0e1116;
-            --bg-sidebar: #10141a;
-            --bg-card: #151a21;
-            --bg-input: #0b0e13;
-            --bg-hover: #1c222b;
-            --text-main: #cdd5df;
-            --text-muted: #8b939e;
-            --text-white: #f2f5f9;
-            --primary: #1f6feb;
-            --primary-hover: #388bfd;
-            --primary-glow: rgba(31, 111, 235, 0.15);
-            --success: #3fb950;
-            --danger: #f85149;
-            --warning: #d29922;
-            --radius-lg: 8px;
-            --radius-md: 6px;
-            --radius-sm: 6px;
-            --border-subtle: #262c36;
-            --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.4);
-            --shadow-glow: none;
-        }
-
-        *, *::before, *::after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-body);
-            color: var(--text-main);
-            height: 100vh;
-            overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-            font-size: 14px;
-        }
-
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
-
-        ul {
-            list-style: none;
-        }
-
-        #admin-interface {
-            display: flex;
-            height: 100vh;
-            width: 100%;
-        }
-
-        .sidebar {
-            width: 230px;
-            background: var(--bg-sidebar);
-            border-right: 1px solid var(--border-subtle);
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-        }
-
-        .sidebar-header {
-            padding: 1.05rem 1.1rem;
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: var(--text-white);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .sidebar-menu {
-            padding: 0.6rem 0.55rem;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
-        .menu-item {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem 0.75rem;
-            color: var(--text-muted);
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-size: 0.875rem;
-        }
-
-            .menu-item:hover {
-                background: var(--bg-hover);
-                color: var(--text-white);
-            }
-
-            .menu-item.active {
-                background: var(--primary);
-                color: #ffffff;
-                font-weight: 600;
-            }
-
-        .menu-icon {
-            margin-right: 10px;
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-            .menu-icon svg {
-                width: 16px;
-                height: 16px;
-                stroke: currentColor;
-                fill: none;
-                stroke-width: 1.8;
-                stroke-linecap: round;
-                stroke-linejoin: round;
-            }
-
-        .main-content {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .top-bar {
-            height: 56px;
-            background: var(--bg-sidebar);
-            border-bottom: 1px solid var(--border-subtle);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 1.5rem;
-            flex-shrink: 0;
-        }
-
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .avatar {
-            width: 32px;
-            height: 32px;
-            background: #2d333b;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: #adbac7;
-        }
-
-        .content-scroll {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 1.5rem;
-        }
-
-        .btn-logout {
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--border-subtle);
-            padding: 0.4rem 0.85rem;
-            border-radius: var(--radius-sm);
-            font-size: 0.85rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-family: inherit;
-        }
-
-            .btn-logout:hover {
-                background: var(--bg-hover);
-                color: var(--text-white);
-                border-color: rgba(248, 81, 73, 0.4);
-            }
-
-            .btn-logout svg {
-                width: 14px;
-                height: 14px;
-                stroke: currentColor;
-                fill: none;
-                stroke-width: 2;
-                stroke-linecap: round;
-                stroke-linejoin: round;
-            }
-
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-lg);
-            padding: 1.25rem;
-            margin-bottom: 1.25rem;
-        }
-
-        .card-header {
-            margin-bottom: 1.25rem;
-            padding-bottom: 0.9rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .card-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-white);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .stat-box {
-            background: var(--bg-card);
-            padding: 1.1rem 1.25rem;
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--border-subtle);
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-white);
-            margin-top: 0.4rem;
-        }
-
-        .stat-label {
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            font-weight: 600;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-
-        th {
-            background-color: var(--bg-sidebar);
-            color: var(--text-muted);
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            font-weight: 600;
-            text-align: left;
-            padding: 0.6rem 1rem;
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        td {
-            padding: 0.7rem 1rem;
-            border-bottom: 1px solid var(--border-subtle);
-            color: var(--text-main);
-            font-size: 0.875rem;
-        }
-
-            tr:last-child td {
-                border-bottom: none;
-            }
-
-        tr:hover td {
-            background-color: var(--bg-hover);
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 0.18rem 0.6rem;
-            border-radius: 999px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: var(--text-main);
-            background: #2d333b;
-        }
-
-        .badge-primary {
-            background: var(--primary-glow);
-            color: #7cb2f8;
-        }
-
-        .badge-success {
-            background: rgba(63, 185, 80, 0.15);
-            color: #57ab5a;
-        }
-
-        .badge-danger {
-            background: rgba(248, 81, 73, 0.15);
-            color: #f69d97;
-        }
-
-        .alert {
-            padding: 0.85rem 1rem;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border-subtle);
-            background-color: var(--bg-card);
-            margin-bottom: 1rem;
-            color: var(--text-main);
-            font-size: 0.9rem;
-        }
-
-        .alert-info {
-            border-left: 3px solid var(--primary);
-        }
-
-        .alert-danger {
-            border-left: 3px solid var(--danger);
-        }
-
-        .logo {
-            color: var(--text-white);
-        }
-
-            .logo span {
-                color: var(--accent);
-            }
-    </style>
+    <title>@title - SharpPress</title>
+    <script>
+        try { const theme = localStorage.getItem("theme"); if (theme) document.documentElement.dataset.theme = theme; } catch { delete document.documentElement.dataset.theme; }
+    </script>
+    <link rel="stylesheet" href="~/assets/app.css" asp-append-version="true" />
+    <script src="~/assets/app.js" asp-append-version="true" defer></script>
 </head>
 <body>
-    <div id="admin-interface">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">Sharp<span>Press</span></div>
-            </div>
-            <ul class="sidebar-menu">
-                @foreach (var item in menuItems)
+    <div class="shell">
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">SharpPress</div>
+            <nav aria-label="Admin">
+                @foreach (var group in groups)
                 {
-                    var isActive = currentPath == item.Url.ToLowerInvariant() ? "active" : "";
-                    <li>
-                        <a href="@item.Url" class="menu-item @isActive">
-                            <span class="menu-icon">@Html.Raw(item.IconSvg)</span>
-                            @item.Name
-                        </a>
-                    </li>
+                    <div class="nav-group">
+                        @if (group.Label != null)
+                        {
+                            <p class="nav-label">@group.Label</p>
+                        }
+                        <ul>
+                            @foreach (var item in group.Items)
+                            {
+                                <li>
+                                    <a href="@item.Url" class="menu-item" aria-current="@(IsCurrent(item.Url) ? "page" : null)">
+                                        <span class="menu-icon" aria-hidden="true">@Html.Raw(item.Icon)</span>
+                                        @item.Name
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
                 }
-
-                <li style="margin-top: auto;">
-                    <a href="/" class="menu-item" style="color: var(--text-muted);">
-                        <span class="menu-icon">
-                            <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
-                        </span>
-                        Back to Site
-                    </a>
-                </li>
-            </ul>
+            </nav>
+            <a href="/" class="menu-item sidebar-end">View site</a>
         </aside>
+
+        <div class="backdrop" data-menu-close></div>
 
         <main class="main-content">
             <header class="top-bar">
-                <span style="font-weight: 600; font-size: 1.1rem;">@ViewData["Title"]</span>
-
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <a href="/logout">
-                        <button id="logout-btn" class="btn-logout">
-                            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-                            Logout
-                        </button>
-                    </a>
-
-                    <div class="user-profile">
-                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                            <span id="user-name" style="font-size: 0.9rem; font-weight: 600;">@username</span>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">Online</span>
-                        </div>
-                        <div class="avatar" id="user-avatar">@username[0].ToString().ToUpper()</div>
-                    </div>
-                </div>
+                <button type="button" class="btn menu-toggle" data-menu-toggle aria-controls="sidebar" aria-expanded="false">Menu</button>
+                <button type="button" class="btn" data-theme-toggle>Light / dark</button>
+                <span class="user-name" id="user-name">@username</span>
+                <a href="/logout" class="btn" id="logout-btn">Sign out</a>
             </header>
 
-            <div class="content-scroll">
+            <div class="content">
+                @if (TempData["Flash"] is string flash)
+                {
+                    <div class="alert alert-success" role="status">@flash</div>
+                }
+                @if (TempData["FlashError"] is string flashError)
+                {
+                    <div class="alert alert-danger" role="alert">@flashError</div>
+                }
                 @RenderBody()
             </div>
         </main>
     </div>
+
+    <dialog class="dialog" id="confirm-dialog" aria-labelledby="confirm-title">
+        <form method="dialog">
+            <h2 id="confirm-title">Please confirm</h2>
+            <p data-confirm-message></p>
+            <div class="actions">
+                <button class="btn" value="cancel">Cancel</button>
+                <button class="btn btn-danger" value="confirm">Confirm</button>
+            </div>
+        </form>
+    </dialog>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>

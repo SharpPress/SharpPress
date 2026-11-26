@@ -20,9 +20,6 @@ namespace SharpPress.Pages
         public PluginSettingsSection? Section { get; private set; }
         public object? Values { get; private set; }
 
-        [TempData]
-        public string? StatusMessage { get; set; }
-
         public async Task<IActionResult> OnGetAsync(string name)
         {
             if (!await IsAdminAsync())
@@ -60,13 +57,13 @@ namespace SharpPress.Pages
                 }
                 catch (Exception)
                 {
-                    StatusMessage = $"'{property.Name}' has an invalid value.";
+                    TempData["FlashError"] = $"'{property.Name}' has an invalid value.";
                     return RedirectToPage(new { name });
                 }
             }
 
             _store.Save(name, values);
-            StatusMessage = "Settings saved.";
+            TempData["Flash"] = "Settings saved.";
             return RedirectToPage(new { name });
         }
 

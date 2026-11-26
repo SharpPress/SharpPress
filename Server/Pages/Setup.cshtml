@@ -1,440 +1,118 @@
 ﻿@page "/setup"
 @model SharpPress.Pages.SetupModel
 @{
+    Layout = "_SiteLayout";
     ViewData["Title"] = "Setup";
 
-    var stepTitles = new Dictionary<int, (string Title, string Sub)>
+    var heading = Model.Step switch
     {
-        [1] = ("Database", "Point SharpPress at your MySQL server"),
-        [2] = ("Admin account", "Create the administrator and name your site"),
-        [3] = ("Site settings", "Address and a few defaults for your site")
+        1 => "Connect the database",
+        2 => "Create your account",
+        _ => "Finish your site"
     };
-    var (title, sub) = stepTitles[Model.Step];
 }
 
-<style>
-    html, body {
-        background: #0e1116 !important;
-        margin: 0 !important;
-        padding: 0 !important;
+<div class="card narrow">
+    <p class="steps">Step @Model.Step of 3</p>
+    <h1>@heading</h1>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
     }
 
-    .auth-wrapper {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #0e1116 !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        color: #cdd5df;
-        font-size: 14px;
-    }
-
-    .setup-card {
-        width: 100%;
-        max-width: 440px;
-        margin: 24px;
-        padding: 28px;
-        background: #151a21;
-        border: 1px solid #262c36;
-        border-radius: 8px;
-    }
-
-    .setup-steps {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 24px;
-    }
-
-    .setup-step {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        font-size: 12px;
-        font-weight: 600;
-        color: #6e7681;
-        white-space: nowrap;
-    }
-
-        .setup-step .num {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            border: 1px solid #262c36;
-            background: #0b0e13;
-            color: #6e7681;
-        }
-
-        .setup-step.done .num {
-            background: rgba(63, 185, 80, 0.15);
-            border-color: rgba(63, 185, 80, 0.35);
-            color: #57ab5a;
-        }
-
-        .setup-step.active {
-            color: #e6edf3;
-        }
-
-            .setup-step.active .num {
-                background: #1f6feb;
-                border-color: #1f6feb;
-                color: #ffffff;
-            }
-
-    .setup-steps .sep {
-        flex: 1;
-        height: 1px;
-        background: #262c36;
-        min-width: 12px;
-    }
-
-    .auth-header-text {
-        text-align: center;
-        margin-bottom: 22px;
-    }
-
-        .auth-header-text .setup-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 11.5px;
-            font-weight: 600;
-            color: #8b939e;
-            background: #2d333b;
-            padding: 4px 12px;
-            border-radius: 999px;
-            margin-bottom: 12px;
-        }
-
-        .auth-header-text h2 {
-            font-size: 1.15rem;
-            font-weight: 600;
-            color: #f2f5f9;
-            margin: 0 0 5px;
-        }
-
-        .auth-header-text p {
-            font-size: 0.85rem;
-            color: #8b939e;
-            margin: 0;
-        }
-
-    .alert {
-        padding: 10px 14px;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        margin-bottom: 18px;
-        line-height: 1.5;
-    }
-
-    .alert-fluent-danger {
-        background: rgba(248, 81, 73, 0.1) !important;
-        border: 1px solid rgba(248, 81, 73, 0.3);
-        color: #ff7b72 !important;
-    }
-
-    .auth-form {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-    }
-
-    .form-label {
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: #8b939e;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-    }
-
-    .form-input {
-        width: 100%;
-        padding: 9px 12px;
-        background: #0b0e13 !important;
-        border: 1px solid #262c36 !important;
-        border-radius: 6px;
-        color: #cdd5df !important;
-        font-size: 0.875rem;
-        outline: none;
-        font-family: inherit;
-    }
-
-        .form-input::placeholder {
-            color: #6e7681 !important;
-        }
-
-        .form-input:focus {
-            border-color: #1f6feb !important;
-            box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.25);
-        }
-
-    textarea.form-input {
-        resize: vertical;
-        min-height: 70px;
-    }
-
-    select.form-input option {
-        background: #151a21;
-        color: #cdd5df;
-    }
-
-    .text-danger {
-        font-size: 0.78rem;
-        color: #ff7b72 !important;
-    }
-
-    .form-section {
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        color: #6e7681;
-        margin-top: 4px;
-    }
-
-    .check-group {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .check-row {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 10px 12px;
-        background: #0b0e13;
-        border: 1px solid #262c36;
-        border-radius: 6px;
-        cursor: pointer;
-    }
-
-        .check-row input[type="checkbox"] {
-            margin-top: 2px;
-            accent-color: #1f6feb;
-            width: 14px;
-            height: 14px;
-            cursor: pointer;
-        }
-
-        .check-row .check-title {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #cdd5df;
-        }
-
-        .check-row .check-sub {
-            font-size: 0.78rem;
-            color: #8b939e;
-            line-height: 1.4;
-        }
-
-    .field-hint {
-        font-size: 0.78rem;
-        color: #6e7681;
-        line-height: 1.4;
-    }
-
-    .btn-submit {
-        width: 100%;
-        padding: 10px;
-        border: none !important;
-        border-radius: 6px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        cursor: pointer;
-        margin-top: 4px;
-        font-family: inherit;
-    }
-
-    .fluent-cta {
-        background: #1f6feb !important;
-        color: #ffffff !important;
-    }
-
-        .fluent-cta:hover {
-            background: #388bfd !important;
-        }
-</style>
-
-<div class="auth-wrapper">
-    <div class="setup-card">
-
-        <div class="setup-steps">
-            <div class="setup-step @(Model.Step > 1 ? "done" : Model.Step == 1 ? "active" : "")">
-                <span class="num">@(Model.Step > 1 ? "✓" : "1")</span> Database
+    @if (Model.Step == 1)
+    {
+        <form method="post" asp-page-handler="Step1">
+            <div class="field">
+                <label asp-for="Step1.Host">Database server</label>
+                <input asp-for="Step1.Host" required />
+                <span asp-validation-for="Step1.Host" class="error-text"></span>
             </div>
-            <div class="sep"></div>
-            <div class="setup-step @(Model.Step > 2 ? "done" : Model.Step == 2 ? "active" : "")">
-                <span class="num">@(Model.Step > 2 ? "✓" : "2")</span> Admin
+            <div class="field">
+                <label asp-for="Step1.Port">Port</label>
+                <input asp-for="Step1.Port" required />
+                <span asp-validation-for="Step1.Port" class="error-text"></span>
             </div>
-            <div class="sep"></div>
-            <div class="setup-step @(Model.Step == 3 ? "active" : "")">
-                <span class="num">3</span> Site
+            <div class="field">
+                <label asp-for="Step1.Database">Database name</label>
+                <input asp-for="Step1.Database" required />
+                <span asp-validation-for="Step1.Database" class="error-text"></span>
+                <p class="field-help">Created automatically if it does not exist.</p>
             </div>
-        </div>
-
-        <div class="auth-header-text">
-            <span class="setup-badge">First run</span>
-            <h2>@title</h2>
-            <p>@sub</p>
-        </div>
-
-        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-        {
-            <div class="alert alert-fluent-danger">@Model.ErrorMessage</div>
-        }
-
-        @if (Model.Step == 1)
-        {
-            <form method="post" asp-page-handler="Step1" class="auth-form">
-                @Html.AntiForgeryToken()
-
-                <div class="form-group">
-                    <label class="form-label" asp-for="Step1.Host"></label>
-                    <input asp-for="Step1.Host" class="form-input" placeholder="localhost" required autofocus />
-                    <span asp-validation-for="Step1.Host" class="text-danger"></span>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" asp-for="Step1.Port"></label>
-                        <input asp-for="Step1.Port" class="form-input" required />
-                        <span asp-validation-for="Step1.Port" class="text-danger"></span>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" asp-for="Step1.Database"></label>
-                        <input asp-for="Step1.Database" class="form-input" placeholder="sharppress" required />
-                        <span asp-validation-for="Step1.Database" class="text-danger"></span>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" asp-for="Step1.Username"></label>
-                        <input asp-for="Step1.Username" class="form-input" placeholder="root" required autocomplete="off" />
-                        <span asp-validation-for="Step1.Username" class="text-danger"></span>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" asp-for="Step1.Password"></label>
-                        <input asp-for="Step1.Password" class="form-input" placeholder="••••••••" type="password" autocomplete="new-password" />
-                        <span asp-validation-for="Step1.Password" class="text-danger"></span>
-                    </div>
-                </div>
-
-                <span class="field-hint">The database and tables are created automatically if they don't exist.</span>
-
-                <button type="submit" class="btn-submit fluent-btn fluent-cta">Connect and continue</button>
-            </form>
-        }
-        else if (Model.Step == 2)
-        {
-            <form method="post" asp-page-handler="Step2" class="auth-form">
-                @Html.AntiForgeryToken()
-
-                <div class="form-section">Your site</div>
-
-                <div class="form-group">
-                    <label class="form-label" asp-for="Step2.SiteName"></label>
-                    <input asp-for="Step2.SiteName" class="form-input" placeholder="My Awesome Blog" required autofocus />
-                    <span asp-validation-for="Step2.SiteName" class="text-danger"></span>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" asp-for="Step2.SiteDescription"></label>
-                    <textarea asp-for="Step2.SiteDescription" class="form-input" placeholder="A few words about what this site is"></textarea>
-                    <span asp-validation-for="Step2.SiteDescription" class="text-danger"></span>
-                </div>
-
-                <div class="form-section">Admin account</div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" asp-for="Step2.Username"></label>
-                        <input asp-for="Step2.Username" class="form-input" placeholder="admin" required autocomplete="username" />
-                        <span asp-validation-for="Step2.Username" class="text-danger"></span>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" asp-for="Step2.Email"></label>
-                        <input asp-for="Step2.Email" class="form-input" placeholder="admin@example.com" required autocomplete="email" />
-                        <span asp-validation-for="Step2.Email" class="text-danger"></span>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" asp-for="Step2.Password"></label>
-                        <input asp-for="Step2.Password" class="form-input" placeholder="••••••••" required autocomplete="new-password" />
-                        <span asp-validation-for="Step2.Password" class="text-danger"></span>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" asp-for="Step2.ConfirmPassword"></label>
-                        <input asp-for="Step2.ConfirmPassword" class="form-input" placeholder="••••••••" required autocomplete="new-password" />
-                        <span asp-validation-for="Step2.ConfirmPassword" class="text-danger"></span>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn-submit fluent-btn fluent-cta">Create admin and continue</button>
-            </form>
-        }
-        else
-        {
-            <form method="post" asp-page-handler="Step3" class="auth-form">
-                @Html.AntiForgeryToken()
-
-                <div class="form-group">
-                    <label class="form-label" asp-for="Step3.SiteUrl"></label>
-                    <input asp-for="Step3.SiteUrl" class="form-input" placeholder="https://yourdomain.com" required autofocus />
-                    <span asp-validation-for="Step3.SiteUrl" class="text-danger"></span>
-                    <span class="field-hint">Used for links in RSS, sitemap.xml and robots.txt, and in emails.</span>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" asp-for="Step3.Timezone"></label>
-                    <select asp-for="Step3.Timezone" class="form-input">
-                        <option value="UTC">UTC (Coordinated Universal Time)</option>
-                        <option value="EST">EST (Eastern Standard Time)</option>
-                        <option value="PST">PST (Pacific Standard Time)</option>
-                    </select>
-                </div>
-
-                <div class="check-group">
-                    <label class="check-row">
-                        <input type="checkbox" asp-for="Step3.AllowRegistration">
-                        <span class="check-text">
-                            <span class="check-title">Allow registration</span>
-                            <span class="check-sub">Let visitors create their own accounts</span>
-                        </span>
-                    </label>
-
-                    <label class="check-row">
-                        <input type="checkbox" asp-for="Step3.ForceHttps">
-                        <span class="check-text">
-                            <span class="check-title">Force HTTPS</span>
-                            <span class="check-sub">Redirect all HTTP traffic to HTTPS (needs a reverse proxy)</span>
-                        </span>
-                    </label>
-                </div>
-
-                <button type="submit" class="btn-submit fluent-btn fluent-cta">Finish setup</button>
-            </form>
-        }
-    </div>
+            <div class="field">
+                <label asp-for="Step1.Username">Database user</label>
+                <input asp-for="Step1.Username" required autocomplete="off" />
+                <span asp-validation-for="Step1.Username" class="error-text"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Step1.Password">Database password</label>
+                <input asp-for="Step1.Password" type="password" autocomplete="new-password" />
+                <span asp-validation-for="Step1.Password" class="error-text"></span>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Connect and continue</button>
+        </form>
+    }
+    else if (Model.Step == 2)
+    {
+        <form method="post" asp-page-handler="Step2">
+            <div class="field">
+                <label asp-for="Step2.SiteName">Site name</label>
+                <input asp-for="Step2.SiteName" required />
+                <span asp-validation-for="Step2.SiteName" class="error-text"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Step2.SiteDescription">Site description (optional)</label>
+                <textarea asp-for="Step2.SiteDescription" rows="2"></textarea>
+                <span asp-validation-for="Step2.SiteDescription" class="error-text"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Step2.Username">Your username</label>
+                <input asp-for="Step2.Username" required autocomplete="username" />
+                <span asp-validation-for="Step2.Username" class="error-text"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Step2.Email">Your email</label>
+                <input asp-for="Step2.Email" required autocomplete="email" />
+                <span asp-validation-for="Step2.Email" class="error-text"></span>
+            </div>
+            <div class="field">
+                <label asp-for="Step2.Password">Password</label>
+                <input asp-for="Step2.Password" required autocomplete="new-password" />
+                <span asp-validation-for="Step2.Password" class="error-text"></span>
+                <p class="field-help">At least 8 characters with an uppercase letter, a lowercase letter, a number and a symbol.</p>
+            </div>
+            <div class="field">
+                <label asp-for="Step2.ConfirmPassword">Repeat password</label>
+                <input asp-for="Step2.ConfirmPassword" required autocomplete="new-password" />
+                <span asp-validation-for="Step2.ConfirmPassword" class="error-text"></span>
+                <label class="check"><input type="checkbox" data-show-password="Step2_Password Step2_ConfirmPassword" /> Show passwords</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Create account and continue</button>
+        </form>
+    }
+    else
+    {
+        <form method="post" asp-page-handler="Step3">
+            <div class="field">
+                <label asp-for="Step3.SiteUrl">Site address</label>
+                <input asp-for="Step3.SiteUrl" placeholder="https://example.com" required />
+                <span asp-validation-for="Step3.SiteUrl" class="error-text"></span>
+                <p class="field-help">Used for links in feeds, the sitemap and emails.</p>
+            </div>
+            <div class="field">
+                <label asp-for="Step3.Timezone">Time zone</label>
+                <select asp-for="Step3.Timezone">
+                    <option value="UTC">UTC</option>
+                    <option value="EST">EST</option>
+                    <option value="PST">PST</option>
+                </select>
+            </div>
+            <div class="field">
+                <label class="check"><input type="checkbox" asp-for="Step3.AllowRegistration" /> Let visitors create accounts</label>
+                <label class="check"><input type="checkbox" asp-for="Step3.ForceHttps" /> Always use HTTPS</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Finish setup</button>
+        </form>
+    }
 </div>

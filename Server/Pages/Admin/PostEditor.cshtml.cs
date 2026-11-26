@@ -132,6 +132,7 @@ namespace SharpPress.Pages
             else
                 await _postService.SetPostTagsAsync(Post.Id, new List<int>());
 
+            TempData["Flash"] = "Post saved.";
             return RedirectToPage("/Admin/Posts");
         }
     }

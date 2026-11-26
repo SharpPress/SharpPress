@@ -36,6 +36,7 @@ namespace SharpPress.Pages
                 return RedirectToPage("/Login");
 
             await _postService.DeletePostAsync(id);
+            TempData["Flash"] = "Post deleted.";
             return RedirectToPage();
         }
     }

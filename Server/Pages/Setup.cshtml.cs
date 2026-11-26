@@ -157,7 +157,7 @@ namespace SharpPress.Pages
                 General = new GeneralSettings
                 {
                     SiteName = Step2.SiteName,
-                    SiteDescription = Step2.SiteDescription,
+                    SiteDescription = Step2.SiteDescription ?? "",
                     AdminEmail = Step2.Email,
                     Timezone = "UTC",
                     FooterText = ""
@@ -264,7 +264,7 @@ namespace SharpPress.Pages
             public string SiteName { get; set; } = "";
 
             [StringLength(300)]
-            public string SiteDescription { get; set; } = "";
+            public string? SiteDescription { get; set; }
 
             [Required(ErrorMessage = "Username is required")]
             [StringLength(48, MinimumLength = 3)]

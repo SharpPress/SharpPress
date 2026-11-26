@@ -1,262 +1,90 @@
 @page "/admin/media"
 @model SharpPress.Pages.MediaModel
-@inject SharpPress.Services.IUserService _userService
 
 @{
     Layout = "_AdminLayout";
-    ViewData["Title"] = "Media Library";
+    ViewData["Title"] = "Media";
 }
 
-<style>
-    .media-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-    }
+<header class="page-header">
+    <h1>Media</h1>
+</header>
 
-    .upload-zone {
-        border: 2px dashed var(--border-subtle);
-        border-radius: var(--radius-lg);
-        padding: 2rem;
-        text-align: center;
-        margin-bottom: 1.5rem;
-        transition: 0.2s;
-        cursor: pointer;
-        position: relative;
-    }
-
-    .upload-zone:hover, .upload-zone.dragover {
-        border-color: var(--primary);
-        background: var(--primary-glow);
-    }
-
-    .upload-zone input[type="file"] {
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        opacity: 0;
-        cursor: pointer;
-    }
-
-    .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-muted); }
-    .upload-text { color: var(--text-muted); font-size: 0.9rem; }
-    .upload-text strong { color: #7cb2f8; }
-
-    .media-filters {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-    }
-
-    .filter-btn {
-        background: rgba(255,255,255,0.04);
-        border: 1px solid var(--border-subtle);
-        color: var(--text-muted);
-        padding: 0.4rem 0.9rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: 0.15s;
-    }
-
-    .filter-btn:hover, .filter-btn.active {
-        background: var(--primary);
-        color: white;
-        border-color: var(--primary);
-    }
-
-    .media-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 1rem;
-    }
-
-    .media-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-md);
-        overflow: hidden;
-        transition: 0.2s;
-        position: relative;
-    }
-
-    .media-card:hover {
-        border-color: #3d444d;
-    }
-
-    .media-thumb {
-        width: 100%;
-        height: 140px;
-        object-fit: cover;
-        display: block;
-        background: var(--bg-input);
-    }
-
-    .media-thumb-placeholder {
-        width: 100%;
-        height: 140px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--bg-input);
-        color: var(--text-muted);
-        font-size: 2rem;
-    }
-
-    .media-info { padding: 0.75rem; }
-    .media-name { font-size: 0.82rem; font-weight: 600; color: var(--text-white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .media-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
-    .media-type-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .type-image { background: rgba(63,185,80,0.15); color: #57ab5a; }
-    .type-video { background: rgba(31,111,235,0.15); color: #7cb2f8; }
-    .type-audio { background: rgba(210,153,34,0.18); color: #e3b341; }
-    .type-document { background: rgba(134,142,150,0.15); color: #9aa4b1; }
-    .type-other { background: rgba(134,142,150,0.15); color: #9aa4b1; }
-
-    .media-actions {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        display: flex;
-        gap: 4px;
-        opacity: 0;
-        transition: 0.15s;
-    }
-
-    .media-card:hover .media-actions { opacity: 1; }
-
-    .btn-media-action {
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        font-size: 0.75rem;
-        transition: 0.15s;
-    }
-
-    .btn-media-delete { background: rgba(248,81,73,0.9); color: white; }
-    .btn-media-delete:hover { background: #f85149; }
-</style>
-
-<div class="media-header">
-    <h2 style="color: var(--text-white); font-size: 1.4rem; font-weight: 600;">Media Library</h2>
-</div>
-
-<form method="post" asp-page-handler="Upload" enctype="multipart/form-data">
-    <div class="upload-zone" id="upload-zone">
-        <input type="file" name="uploadedFiles" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.csv" />
-        <div class="upload-icon">&#128228;</div>
-        <div class="upload-text">Drop files here or <strong>click to upload</strong></div>
+<form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="card inline-form" id="upload-form">
+    <div class="field">
+        <label for="upload-files">Choose files, or drop them on this box</label>
+        <input type="file" id="upload-files" name="uploadedFiles" multiple required accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.csv" />
     </div>
-    <button type="submit" id="upload-btn" style="display:none;">Upload</button>
+    <button type="submit" class="btn btn-primary">Upload</button>
 </form>
-
-<div class="media-filters">
-    <button class="filter-btn active" onclick="filterMedia('all', event)">All</button>
-    <button class="filter-btn" onclick="filterMedia('image', event)">Images</button>
-    <button class="filter-btn" onclick="filterMedia('video', event)">Videos</button>
-    <button class="filter-btn" onclick="filterMedia('audio', event)">Audio</button>
-    <button class="filter-btn" onclick="filterMedia('document', event)">Documents</button>
-</div>
-
-<div class="media-grid" id="media-grid">
-    @foreach (var media in Model.MediaItems.OrderByDescending(m => m.CreatedAt))
-    {
-        var typeClass = media.MediaType switch
-        {
-            "image" => "type-image",
-            "video" => "type-video",
-            "audio" => "type-audio",
-            "document" => "type-document",
-            _ => "type-other"
-        };
-
-        <div class="media-card" data-type="@media.MediaType">
-            <div class="media-actions">
-                <form method="post" asp-page-handler="Delete" asp-route-id="@media.Id" onsubmit="return confirm('Delete this file?');">
-                    <button type="submit" class="btn-media-action btn-media-delete" title="Delete">&times;</button>
-                </form>
-            </div>
-
-            @if (media.MediaType == "image")
-            {
-                var src = !string.IsNullOrEmpty(media.ThumbnailPath) ? $"/media/thumbnails/{media.ThumbnailPath}" : $"/media/{media.FilePath}";
-                <img class="media-thumb" src="@src" alt="@media.AltText" loading="lazy" />
-            }
-            else if (media.MediaType == "video")
-            {
-                <div class="media-thumb-placeholder">&#127909;</div>
-            }
-            else if (media.MediaType == "audio")
-            {
-                <div class="media-thumb-placeholder">&#127925;</div>
-            }
-            else
-            {
-                <div class="media-thumb-placeholder">&#128196;</div>
-            }
-
-            <div class="media-info">
-                <div class="media-name" title="@media.FileName">@media.FileName</div>
-                <div class="media-meta">
-                    <span class="media-type-badge @typeClass">@media.MediaType</span>
-                    @(media.FileSize < 1024 * 1024 ? $"{media.FileSize / 1024} KB" : $"{media.FileSize / 1024.0 / 1024.0:F1} MB")
-                </div>
-            </div>
-        </div>
-    }
-</div>
 
 @if (!Model.MediaItems.Any())
 {
-    <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
-        <p style="font-size: 1.1rem;">No media files yet. Upload your first file!</p>
+    <div class="empty">
+        <p>No files yet. Choose a file above and press Upload.</p>
+    </div>
+}
+else
+{
+    <div class="field">
+        <label for="media-filter">Show</label>
+        <select id="media-filter">
+            <option value="all">All files</option>
+            <option value="image">Images</option>
+            <option value="video">Videos</option>
+            <option value="audio">Audio</option>
+            <option value="document">Documents</option>
+        </select>
+    </div>
+
+    <div class="media-grid">
+        @foreach (var media in Model.MediaItems.OrderByDescending(m => m.CreatedAt))
+        {
+            <article class="media-card" data-type="@media.MediaType">
+                @if (media.MediaType == "image")
+                {
+                    var preview = string.IsNullOrEmpty(media.ThumbnailPath) ? $"/media/{media.FilePath}" : $"/media/thumbnails/{media.ThumbnailPath}";
+                    <img class="media-preview" src="@preview" alt="@media.AltText" loading="lazy" />
+                }
+                else
+                {
+                    <div class="media-preview file-preview">@media.MediaType</div>
+                }
+                <div class="media-body">
+                    <p class="cell-title">@media.FileName</p>
+                    <p class="field-help">@(media.FileSize < 1024 * 1024 ? $"{media.FileSize / 1024} KB" : $"{media.FileSize / 1024.0 / 1024.0:F1} MB")</p>
+                    <div class="actions">
+                        <a class="btn" href="/media/@media.FilePath" target="_blank" rel="noopener">Open</a>
+                        <form method="post" asp-page-handler="Delete" asp-route-id="@media.Id" data-confirm="Delete the file &quot;@media.FileName&quot;? This cannot be undone.">
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </article>
+        }
     </div>
 }
 
 @section Scripts {
 <script>
-    var uploadZone = document.getElementById('upload-zone');
-    var uploadBtn = document.getElementById('upload-btn');
+    (() => {
+        const form = document.getElementById("upload-form");
+        const input = document.getElementById("upload-files");
+        const filter = document.getElementById("media-filter");
 
-    uploadZone.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        this.classList.add('dragover');
-    });
+        form.addEventListener("dragover", event => event.preventDefault());
 
-    uploadZone.addEventListener('dragleave', function() {
-        this.classList.remove('dragover');
-    });
-
-    uploadZone.addEventListener('drop', function(e) {
-        e.preventDefault();
-        this.classList.remove('dragover');
-        var input = this.querySelector('input[type="file"]');
-        input.files = e.dataTransfer.files;
-        uploadBtn.click();
-    });
-
-    uploadZone.querySelector('input[type="file"]').addEventListener('change', function() {
-        if (this.files.length > 0) uploadBtn.click();
-    });
-
-    function filterMedia(type, evt) {
-        document.querySelectorAll('.filter-btn').forEach(function(btn) { btn.classList.remove('active'); });
-        evt.target.classList.add('active');
-
-        document.querySelectorAll('.media-card').forEach(function(card) {
-            if (type === 'all' || card.dataset.type === type) {
-                card.style.display = '';
-            } else {
-                card.style.display = 'none';
-            }
+        form.addEventListener("drop", event => {
+            event.preventDefault();
+            input.files = event.dataTransfer.files;
+            form.requestSubmit();
         });
-    }
+
+        filter?.addEventListener("change", () => {
+            document.querySelectorAll(".media-card").forEach(card => {
+                card.hidden = filter.value !== "all" && card.dataset.type !== filter.value;
+            });
+        });
+    })();
 </script>
 }

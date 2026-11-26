@@ -5,6 +5,7 @@ A plugin-first content management system built on C# and .NET 8. SharpPress stor
 ## Highlights
 
 - **Content:** posts, pages, categories, tags, scheduled publishing, media library with thumbnails, RSS, sitemap and robots.txt.
+- **Interface:** responsive admin panel with light and dark themes. Plugin pages can use the same classes from `/assets/app.css`.
 - **Users and security:** JWT and cookie authentication, TOTP two-factor authentication, role-based access (User, Moderator, Support, Admin) and login lockout.
 - **Admin panel:** dashboard, content management, user management, plugin management and a plugin store.
 - **Plugin platform:** load, replace and unload plugins at runtime. The plugin API covers HTTP routes, MVC controllers and Razor Pages, middleware, an event bus with cancellable events, content filters and shortcodes, typed settings, custom post fields, a scheduler, private database tables and service replacement.

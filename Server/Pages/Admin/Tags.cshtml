@@ -1,68 +1,60 @@
 @page "/admin/tags"
 @model SharpPress.Pages.TagsModel
-@inject SharpPress.Services.IUserService _userService
 
 @{
     Layout = "_AdminLayout";
     ViewData["Title"] = "Tags";
 }
 
-<style>
-    .tags-layout { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; }
-    .create-panel { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1.5rem; align-self: start; }
-    .list-panel { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1.5rem; }
-    .form-group { margin-bottom: 1rem; }
-    .form-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
-    .form-input { width: 100%; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.6rem 0.9rem; color: var(--text-main); font-size: 0.88rem; outline: none; }
-    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); }
-    .btn-primary { background: var(--primary); color: white; padding: 0.6rem 1.2rem; border-radius: var(--radius-sm); border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; width: 100%; transition: 0.2s; }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .tag-item { display: inline-flex; align-items: center; gap: 8px; background: #2d333b; border: 1px solid transparent; border-radius: 999px; padding: 0.4rem 0.9rem; margin: 0.25rem; }
-    .tag-item:hover { background: var(--bg-hover); }
-    .tag-name { font-weight: 600; color: var(--text-main); font-size: 0.88rem; }
-    .tag-slug { font-size: 0.75rem; color: var(--text-muted); }
-    .btn-delete-tag { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 0.85rem; padding: 0; opacity: 0.5; transition: 0.15s; }
-    .btn-delete-tag:hover { opacity: 1; }
-    .panel-title { font-size: 1.1rem; font-weight: 600; color: var(--text-white); margin-bottom: 1rem; }
-    .tags-wrap { display: flex; flex-wrap: wrap; }
-</style>
+<header class="page-header">
+    <h1>Tags</h1>
+</header>
 
-<div class="tags-layout">
-    <div class="create-panel">
-        <div class="panel-title">New Tag</div>
-        <form method="post" asp-page-handler="Create">
-            <div class="form-group">
-                <label class="form-label">Name</label>
-                <input class="form-input" asp-for="NewTag.Name" placeholder="Tag name" required />
-            </div>
-            <div class="form-group">
-                <label class="form-label">Slug</label>
-                <input class="form-input" asp-for="NewTag.Slug" placeholder="auto-generated" />
-            </div>
-            <button type="submit" class="btn-primary">Create Tag</button>
-        </form>
+<form method="post" asp-page-handler="Create" class="card inline-form">
+    <div class="field">
+        <label for="tag-name">Name</label>
+        <input asp-for="NewTag.Name" id="tag-name" required />
     </div>
+    <div class="field">
+        <label for="tag-slug">Web address (optional)</label>
+        <input asp-for="NewTag.Slug" id="tag-slug" />
+    </div>
+    <button type="submit" class="btn btn-primary">Add tag</button>
+</form>
 
-    <div class="list-panel">
-        <div class="panel-title">Tags (@Model.Tags.Count)</div>
-        @if (Model.Tags.Any())
-        {
-            <div class="tags-wrap">
+@if (!Model.Tags.Any())
+{
+    <div class="empty">
+        <p>No tags yet. Add one above to label your posts.</p>
+    </div>
+}
+else
+{
+    <div class="table-container">
+        <table class="table-stack">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Web address</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
                 @foreach (var tag in Model.Tags)
                 {
-                    <div class="tag-item">
-                        <span class="tag-name">@tag.Name</span>
-                        <span class="tag-slug">/@tag.Slug</span>
-                        <form method="post" asp-page-handler="Delete" asp-route-id="@tag.Id" style="display:inline;" onsubmit="return confirm('Delete this tag?');">
-                            <button type="submit" class="btn-delete-tag" title="Delete">&times;</button>
-                        </form>
-                    </div>
+                    <tr>
+                        <td class="cell-title">@tag.Name</td>
+                        <td data-label="Web address" class="cell-muted">/@tag.Slug</td>
+                        <td>
+                            <div class="actions">
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@tag.Id" data-confirm="Delete the tag &quot;@tag.Name&quot;? This cannot be undone.">
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
                 }
-            </div>
-        }
-        else
-        {
-            <p style="color: var(--text-muted); text-align: center; padding: 2rem;">No tags yet.</p>
-        }
+            </tbody>
+        </table>
     </div>
-</div>
+}

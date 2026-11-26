@@ -140,6 +140,7 @@ namespace SharpPress.Pages
                 return Page();
             }
 
+            TempData["Flash"] = $"{plugin.Name} is installed.";
             return RedirectToPage("/Admin/Plugins");
         }
 

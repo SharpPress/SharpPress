@@ -41,6 +41,7 @@ namespace SharpPress.Pages
             if (!string.IsNullOrWhiteSpace(NewTag.Name))
             {
                 await _taxonomyService.CreateTagAsync(NewTag);
+                TempData["Flash"] = "Tag added.";
             }
             return RedirectToPage();
         }
@@ -52,6 +53,7 @@ namespace SharpPress.Pages
                 return RedirectToPage("/Login");
 
             await _taxonomyService.DeleteTagAsync(id);
+            TempData["Flash"] = "Tag deleted.";
             return RedirectToPage();
         }
     }

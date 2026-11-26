@@ -1,324 +1,65 @@
 ﻿@page "/admin/plugins/store"
 @model SharpPress.Pages.PluginStoreModel
-@inject PluginManager pluginManager
 @{
     Layout = "_AdminLayout";
-    ViewData["Title"] = "Plugin Store";
+    ViewData["Title"] = "Plugin store";
 }
 
-<style>
-    .store-container {
-        max-width: 1400px;
-        margin: 0 auto;
-    }
+<header class="page-header">
+    <h1>Plugin store</h1>
+    <a href="/admin/plugins" class="btn">Back to plugins</a>
+</header>
 
-    .store-header {
-        margin-bottom: 1.5rem;
-        padding: 1.5rem;
-        background: var(--bg-card);
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--border-subtle);
-    }
-
-    .store-title {
-        font-size: 1.15rem;
-        font-weight: 600;
-        color: var(--text-white);
-        margin-bottom: 0.3rem;
-    }
-
-    .store-subtitle {
-        font-size: 0.875rem;
-        color: var(--text-muted);
-        line-height: 1.5;
-    }
-
-    .store-stats {
-        display: flex;
-        gap: 2rem;
-        margin-top: 1.1rem;
-    }
-
-    .store-stat {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-    }
-
-    .store-stat-number {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--text-white);
-    }
-
-    .store-stat-label {
-        font-size: 0.72rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        font-weight: 600;
-    }
-
-    .plugins-showcase {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1rem;
-    }
-
-    .plugin-store-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-    }
-
-        .plugin-store-card:hover {
-            border-color: #3d444d;
-        }
-
-    .card-banner {
-        height: 110px;
-        background: #1b212b;
-        border-bottom: 1px solid var(--border-subtle);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-    }
-
-    .plugin-icon-large {
-        width: 64px;
-        height: 64px;
-        border-radius: var(--radius-md);
-        background: #ffffff;
-        padding: 0.4rem;
-        object-fit: cover;
-    }
-
-    .card-content {
-        padding: 1.1rem;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .card-header {
-        margin-bottom: 0.75rem;
-    }
-
-    .card-plugin-name {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-white);
-        margin-bottom: 0.3rem;
-    }
-
-    .card-plugin-meta {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        font-size: 0.85rem;
-        color: var(--text-muted);
-    }
-
-    .meta-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.15rem 0.55rem;
-        background: #2d333b;
-        border-radius: 999px;
-        color: var(--text-muted);
-        font-weight: 600;
-        font-size: 0.72rem;
-    }
-
-    .badge-new {
-        background: rgba(63, 185, 80, 0.15);
-        color: #57ab5a;
-    }
-
-    .badge-popular {
-        background: rgba(210, 153, 34, 0.15);
-        color: #e3b341;
-    }
-
-    .card-description {
-        font-size: 0.875rem;
-        color: var(--text-muted);
-        line-height: 1.55;
-        margin-bottom: 1.1rem;
-        flex-grow: 1;
-    }
-
-    .card-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding-top: 0.9rem;
-        border-top: 1px solid var(--border-subtle);
-    }
-
-    .author-info {
-        display: flex;
-        align-items: center;
-        gap: 0.55rem;
-    }
-
-    .author-avatar {
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        background: #2d333b;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #adbac7;
-        font-weight: 600;
-        font-size: 0.7rem;
-    }
-
-    .author-name {
-        font-size: 0.85rem;
-        color: var(--text-main);
-    }
-
-    .btn-install {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.45rem 1rem;
-        background: var(--success);
-        color: #0d1117;
-        border: 1px solid transparent;
-        border-radius: var(--radius-sm);
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        font-family: inherit;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-        .btn-install:hover {
-            background: #4ecb63;
-        }
-
-    .btn-installed {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.45rem 1rem;
-        background: #2d333b;
-        color: var(--text-muted);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-sm);
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: default;
-        font-family: inherit;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-    .back-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--text-muted);
-        text-decoration: none;
-        font-size: 0.875rem;
-        margin-bottom: 1.25rem;
-        font-weight: 500;
-    }
-
-        .back-link:hover {
-            color: var(--text-white);
-        }
-</style>
-
-<div class="store-container">
-    <a href="/admin/plugins" class="back-link">
-        <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
-        Back to Plugins
-    </a>
-
-    <div class="store-header">
-        <h1 class="store-title">Plugin Store</h1>
-        <p class="store-subtitle">Discover and install amazing plugins to extend your SharpPress experience</p>
-        <div class="store-stats">
-            <div class="store-stat">
-                <div class="store-stat-number">@Model.Plugins.Count</div>
-                <div class="store-stat-label">Available</div>
-            </div>
-            <div class="store-stat">
-                <div class="store-stat-number">@pluginManager.GetLoadedPlugins().Count</div>
-                <div class="store-stat-label">Installed</div>
-            </div>
-            <div class="store-stat">
-                <div class="store-stat-number">Free</div>
-                <div class="store-stat-label">Pricing</div>
-            </div>
-        </div>
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        <p>@Model.ErrorMessage</p>
+        <a href="/admin/plugins/store">Reload the store</a>
     </div>
-
-    <div class="plugins-showcase">
-        @foreach(var plugin in Model.Plugins)
+}
+else if (!Model.Plugins.Any())
+{
+    <div class="empty">
+        <p>The store has no plugins right now. Try again later, or upload a plugin file from the Plugins page.</p>
+    </div>
+}
+else
+{
+    <div class="media-grid store-grid">
+        @foreach (var plugin in Model.Plugins)
         {
-            <div class="plugin-store-card">
-                <div class="card-banner">
-                    <img src="@plugin.Icon" alt="@plugin.Name" class="plugin-icon-large" />
+            <article class="media-card media-body store-card">
+                <h2 class="card-title">@plugin.Name</h2>
+                <p class="field-help">Version @plugin.Version by @plugin.Author</p>
+                <p>@plugin.Description</p>
+                <div class="actions">
+                    @if (Model.IncompatiblePlugins.Contains(plugin))
+                    {
+                        <span class="badge badge-warning">Needs SharpPress @plugin.MinVersion</span>
+                    }
+                    else if (Model.InstalledPlugins.Contains(plugin))
+                    {
+                        <span class="badge badge-success">Installed</span>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="Install" data-busy>
+                            <input type="hidden" name="id" value="@plugin.Id" />
+                            <button type="submit" class="btn btn-primary" aria-label="Install @plugin.Name">Install</button>
+                        </form>
+                    }
                 </div>
-                <div class="card-content">
-                    <div class="card-header">
-                        <h3 class="card-plugin-name">@plugin.Name</h3>
-                        <div class="card-plugin-meta">
-                            <span class="meta-badge">@plugin.Version</span>
-                        </div>
-                    </div>
-                    <p class="card-description">@plugin.Description</p>
-                    <div class="card-footer">
-                        <div class="author-info">
-                            <div class="author-avatar">@(string.IsNullOrWhiteSpace(plugin.Author) ? "?" : plugin.Author[0].ToString().ToUpper())</div>
-                            <span class="author-name">@plugin.Author</span>
-                        </div>
-                        @{
-                            if (Model.IncompatiblePlugins.Contains(plugin))
-                            {
-                                <button type="submit" class="btn-installed">
-                                    Incompatible
-                                </button>
-                            }
-                            else if (!Model.InstalledPlugins.Contains(plugin))
-                            {
-                                <form method="post" asp-page-handler="Install">
-                                    <input name="id" value="@plugin.Id" hidden />
-                                    <button type="submit" class="btn-install">
-                                        <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
-                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                            <polyline points="17 8 12 3 7 8"></polyline>
-                                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                                        </svg>
-                                        Install
-                                    </button>
-                                </form>
-                            }
-                            else
-                            {
-                                <button type="submit" class="btn-installed">
-                                    Installed
-                                </button>
-                            }
-                        }
-                    </div>
-                </div>
-            </div>
+            </article>
         }
     </div>
-</div>
+}
+
+@section Scripts {
+<script>
+    document.querySelectorAll("form[data-busy]").forEach(form => form.addEventListener("submit", () => {
+        const button = form.querySelector("button");
+        button.textContent = "Installing…";
+        button.disabled = true;
+    }));
+</script>
+}

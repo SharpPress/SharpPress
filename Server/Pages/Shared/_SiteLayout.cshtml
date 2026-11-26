@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] ?? "SharpPress")</title>
+    <script>
+        try { const theme = localStorage.getItem("theme"); if (theme) document.documentElement.dataset.theme = theme; } catch { delete document.documentElement.dataset.theme; }
+    </script>
+    <link rel="stylesheet" href="~/assets/app.css" asp-append-version="true" />
+    <script src="~/assets/app.js" asp-append-version="true" defer></script>
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body>
+    <header class="site-bar">
+        <a href="/" class="brand">SharpPress</a>
+        <button type="button" class="btn" data-theme-toggle>Light / dark</button>
+    </header>
+
+    <main class="site-main">
+        @RenderBody()
+    </main>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -6,800 +6,183 @@
 @{
     Layout = "_AdminLayout";
     ViewData["Title"] = "Users";
-}
-
-<style>
-    .users-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.25rem;
-    }
-
-    .users-title {
-        font-size: 1.15rem;
-        font-weight: 600;
-        color: var(--text-white);
-        margin-bottom: 0.25rem;
-    }
-
-    .users-subtitle {
-        color: var(--text-muted);
-        font-size: 0.875rem;
-    }
-
-    .users-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.85rem;
-        margin-bottom: 1.25rem;
-    }
-
-    .stat-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-md);
-        padding: 0.9rem 1rem;
-    }
-
-    .stat-number {
-        font-size: 1.4rem;
-        font-weight: 600;
-        color: var(--text-white);
-    }
-
-    .stat-label {
-        font-size: 0.72rem;
-        color: var(--text-muted);
-        margin-top: 0.3rem;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        font-weight: 600;
-    }
-
-    .users-table-container {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
-    }
-
-    .table-wrapper {
-        overflow-x: auto;
-    }
-
-    .users-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-        .users-table thead {
-            background: var(--bg-sidebar);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .users-table th {
-            padding: 0.6rem 1rem;
-            text-align: left;
-            font-weight: 600;
-            color: var(--text-muted);
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-        }
-
-        .users-table tbody tr {
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-            .users-table tbody tr:hover {
-                background: var(--bg-hover);
-            }
-
-        .users-table td {
-            padding: 0.7rem 1rem;
-            color: var(--text-main);
-            font-size: 0.875rem;
-        }
-
-    .user-cell {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .user-avatar {
-        width: 32px;
-        height: 32px;
-        background: #2d333b;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        color: #adbac7;
-        font-size: 0.75rem;
-    }
-
-    .user-info {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .user-name {
-        font-weight: 600;
-        color: var(--text-white);
-    }
-
-    .user-email {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-    }
-
-    .role-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.18rem 0.6rem;
-        border-radius: 999px;
-        font-size: 0.72rem;
-        font-weight: 600;
-        white-space: nowrap;
-        background: #2d333b;
-        color: var(--text-main);
-    }
-
-    .role-admin {
-        background: rgba(248, 81, 73, 0.15);
-        color: #f69d97;
-    }
-
-    .role-support {
-        background: rgba(31, 111, 235, 0.15);
-        color: #7cb2f8;
-    }
-
-    .role-moderator {
-        background: rgba(187, 128, 9, 0.18);
-        color: #e3b341;
-    }
-
-    .role-user {
-        background: rgba(63, 185, 80, 0.15);
-        color: #57ab5a;
-    }
-
-    .role-banned {
-        background: #2d333b;
-        color: var(--text-muted);
-    }
-
-    .status-indicator {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        font-size: 0.8rem;
-    }
-
-        .status-indicator::before {
-            content: '';
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--success);
-        }
-
-        .status-indicator.offline::before {
-            background: #6e7681;
-        }
-
-        .status-indicator.locked::before {
-            background: var(--danger);
-        }
-
-    .uuid-cell {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 0.78rem;
-        color: var(--text-muted);
-        max-width: 200px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .action-cell {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .btn-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border: 1px solid var(--border-subtle);
-        background: transparent;
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        color: var(--text-muted);
-        padding: 0;
-    }
-
-        .btn-icon:hover {
-            background: var(--bg-hover);
-            color: var(--text-white);
-        }
-
-        .btn-icon svg {
-            width: 14px;
-            height: 14px;
-            stroke: currentColor;
-            fill: none;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: var(--text-muted);
-    }
-
-    .empty-state-icon {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
-    }
-
-    .empty-state-title {
-        font-size: 1.1rem;
-        color: var(--text-white);
-        margin-bottom: 0.5rem;
-        font-weight: 600;
-    }
-
-    .empty-state-text {
-        font-size: 0.9rem;
-    }
-
-    .verification-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        padding: 0.15rem 0.55rem;
-        background: rgba(63, 185, 80, 0.15);
-        border-radius: 999px;
-        font-size: 0.7rem;
-        color: #57ab5a;
-        font-weight: 600;
-    }
-
-    .two-factor-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        padding: 0.15rem 0.55rem;
-        background: rgba(31, 111, 235, 0.15);
-        border-radius: 999px;
-        font-size: 0.7rem;
-        color: #7cb2f8;
-        font-weight: 600;
-    }
-
-    .user-badges {
-        display: flex;
-        gap: 0.4rem;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(1, 4, 9, 0.7);
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-    }
-
-        .modal.active {
-            display: flex;
-        }
-
-    .modal-content {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        padding: 1.5rem;
-        max-width: 500px;
-        width: 90%;
-        max-height: 80vh;
-        overflow-y: auto;
-    }
-
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.25rem;
-    }
-
-    .modal-title {
-        font-size: 1.05rem;
-        font-weight: 600;
-        color: var(--text-white);
-    }
-
-    .modal-close {
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        font-size: 1.4rem;
-        padding: 0;
-        width: 28px;
-        height: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-        .modal-close:hover {
-            color: var(--text-white);
-        }
-
-    .modal-section {
-        margin-bottom: 1.1rem;
-    }
-
-    .modal-label {
-        font-size: 0.72rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        font-weight: 600;
-        margin-bottom: 0.3rem;
-    }
-
-    .modal-value {
-        font-size: 0.925rem;
-        color: var(--text-main);
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 0.6rem;
-        margin-top: 1.5rem;
-        flex-wrap: wrap;
-    }
-
-    .btn-modal {
-        min-width: 120px;
-        padding: 0.5rem 0.9rem;
-        border-radius: var(--radius-sm);
-        font-size: 0.85rem;
-        font-weight: 500;
-        cursor: pointer;
-        font-family: inherit;
-        background: #2d333b;
-        color: var(--text-main);
-        border: 1px solid var(--border-subtle);
-    }
-
-        .btn-modal:hover {
-            background: var(--bg-hover);
-            color: var(--text-white);
-        }
-
-    .btn-ban, .btn-delete {
-        color: #ff7b72;
-    }
-
-        .btn-ban:hover, .btn-delete:hover {
-            background: rgba(248, 81, 73, 0.15);
-            border-color: rgba(248, 81, 73, 0.4);
-            color: #ff7b72;
-        }
-
-    .toast {
-        position: fixed;
-        bottom: 1.5rem;
-        right: 1.5rem;
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-md);
-        padding: 0.85rem 1.2rem;
-        max-width: 400px;
-        font-size: 0.875rem;
-        z-index: 2000;
-    }
-
-    .toast.success {
-        border-left: 3px solid var(--success);
-    }
-
-    .toast.error {
-        border-left: 3px solid var(--danger);
-    }
-</style>
-
-<div class="users-header">
-    <div>
-        <h1 class="users-title">User Management</h1>
-        <p class="users-subtitle">Manage user accounts and permissions</p>
-    </div>
-</div>
-
-@{
     var users = (await database.GetPagedByLinq<User>(1, 100, u => true, u => u.Id, true)).ToList();
-    var activeCount = users.Count(u => u.IsActive && u.LastActive > DateTime.UtcNow.AddDays(-7));
-    var adminCount = users.Count(u => u.HasRole(UserRole.Admin));
 }
 
-<div class="users-stats">
-    <div class="stat-card">
-        <div class="stat-number">@users.Count</div>
-        <div class="stat-label">Total Users</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-number">@activeCount</div>
-        <div class="stat-label">Active Users</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-number">@adminCount</div>
-        <div class="stat-label">Admins</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-number">@users.Count(u => u.TwoFactorEnabled)</div>
-        <div class="stat-label">2FA Enabled</div>
-    </div>
-</div>
+<header class="page-header">
+    <h1>Users</h1>
+</header>
 
-@if (users.Count > 0)
+<div id="user-message" class="alert" role="status" hidden></div>
+
+@if (users.Count == 0)
 {
-    <div class="users-table-container">
-        <div class="table-wrapper">
-            <table class="users-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                        <th>Last Active</th>
-                        <th>UUID</th>
-                        <th style="width: 100px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var user in users)
-                    {
-                        var isLocked = user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow;
-                        var statusClass = isLocked ? "locked" : (user.IsActive ? "" : "offline");
-                        var statusText = isLocked ? "Locked" : (user.IsActive ? "Online" : "Offline");
-                        var roleClass = $"role-{user.Roles.ToString().ToLowerInvariant()}";
-                        var initials = new string(user.Username.Where(char.IsUpper).Take(2).ToArray());
-                        if (string.IsNullOrEmpty(initials))
-                            initials = user.Username.Substring(0, Math.Min(2, user.Username.Length)).ToUpper();
-
-                        <tr>
-                            <td>
-                                <div class="user-cell">
-                                    <div class="user-avatar">@initials</div>
-                                    <div class="user-info">
-                                        <div class="user-name">@user.Username</div>
-                                        <div class="user-email">@user.Email</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="role-badge @roleClass">
-                                    @user.Roles
-                                </span>
-                            </td>
-                            <td>
-                                <div class="user-badges">
-                                    <span class="status-indicator @statusClass">@statusText</span>
-                                    @if (user.IsVerified)
-                                    {
-                                        <div class="verification-badge">
-                                            <span>✓</span>
-                                            Verified
-                                        </div>
-                                    }
-                                    @if (user.TwoFactorEnabled)
-                                    {
-                                        <div class="two-factor-badge">
-                                            <span>🔐</span>
-                                            2FA
-                                        </div>
-                                    }
-                                </div>
-                            </td>
-                            <td>
-                                @if (user.LastActive > DateTime.UtcNow.AddMinutes(-5))
-                                {
-                                    <span style="color: var(--success);">Just now</span>
-                                }
-                                else if (user.LastActive > DateTime.UtcNow.AddHours(-1))
-                                {
-                                    <span>@Math.Round((DateTime.UtcNow - user.LastActive).TotalMinutes)m ago</span>
-                                }
-                                else if (user.LastActive > DateTime.UtcNow.AddDays(-1))
-                                {
-                                    <span>@Math.Round((DateTime.UtcNow - user.LastActive).TotalHours)h ago</span>
-                                }
-                                else
-                                {
-                                    <span style="color: var(--text-muted);">@user.LastActive.ToString("MMM dd")</span>
-                                }
-                            </td>
-                            <td>
-                                <div class="uuid-cell" title="@user.UUID">@user.UUID.Substring(0, 8)...</div>
-                            </td>
-                            <td>
-                                <div class="action-cell">
-                                    <button class="btn-icon" onclick="openUserModal('@user.UUID')" title="View & manage user">
-                                        <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+    <div class="empty">
+        <p>No users yet. They appear here once they register.</p>
     </div>
 }
 else
 {
-    <div class="users-table-container">
-        <div class="empty-state">
-            <div class="empty-state-icon">👥</div>
-            <div class="empty-state-title">No Users Found</div>
-            <div class="empty-state-text">Users will appear here once they register</div>
-        </div>
+    <div class="table-container">
+        <table class="table-stack">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Last active</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in users)
+                {
+                    var locked = user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow;
+
+                    <tr>
+                        <td>
+                            <div>
+                                <p class="cell-title">@user.Username</p>
+                                <p class="field-help">@user.Email</p>
+                            </div>
+                        </td>
+                        <td data-label="Role"><span class="badge">@user.Roles</span></td>
+                        <td data-label="Status">
+                            <span class="badge @(locked ? "badge-danger" : user.IsActive ? "badge-success" : "")">@(locked ? "Locked" : user.IsActive ? "Active" : "Inactive")</span>
+                        </td>
+                        <td data-label="Last active" class="cell-muted">@user.LastActive.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            <div class="actions">
+                                <button type="button" class="btn" data-user="@user.UUID" aria-label="Manage @user.Username">Manage</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 }
 
-<div id="userModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 class="modal-title">User Details</h2>
-            <button class="modal-close" onclick="closeUserModal()">×</button>
-        </div>
-
-        <div id="userDetails" style="display: none;">
-            <div class="modal-section">
-                <div class="modal-label">Username</div>
-                <div class="modal-value" id="detailUsername"></div>
-            </div>
-
-            <div class="modal-section">
-                <div class="modal-label">Email</div>
-                <div class="modal-value" id="detailEmail"></div>
-            </div>
-
-            <div class="modal-section">
-                <div class="modal-label">UUID</div>
-                <div class="modal-value" id="detailUUID" style="font-family: monospace; font-size: 0.9rem;"></div>
-            </div>
-
-            <div class="modal-section">
-                <div class="modal-label">Role</div>
-                <div class="modal-value" id="detailRole"></div>
-            </div>
-
-            <div class="modal-section">
-                <div class="modal-label">Status</div>
-                <div class="modal-value" id="detailStatus"></div>
-            </div>
-
-            <div class="modal-section">
-                <div class="modal-label">Last Active</div>
-                <div class="modal-value" id="detailLastActive"></div>
-            </div>
-
-            <div class="modal-actions" id="modalActions">
-            </div>
-        </div>
-
-        <div id="userLoading" style="text-align: center; color: var(--text-muted);">
-            <p>Loading user details...</p>
-        </div>
-    </div>
-</div>
+<dialog class="dialog" id="user-dialog" aria-labelledby="user-title">
+    <h2 id="user-title"></h2>
+    <p class="field-help" id="user-email"></p>
+    <dl class="details">
+        <dt>Role</dt>
+        <dd id="user-role"></dd>
+        <dt>Status</dt>
+        <dd id="user-status"></dd>
+        <dt>Last active</dt>
+        <dd id="user-last"></dd>
+        <dt>ID</dt>
+        <dd class="secret" id="user-uuid"></dd>
+    </dl>
+    <div id="user-feedback" class="alert" role="status" hidden></div>
+    <div class="actions" id="user-actions"></div>
+    <form method="dialog" class="actions">
+        <button class="btn">Close</button>
+    </form>
+</dialog>
 
 @Html.AntiForgeryToken()
 
+@section Scripts {
 <script>
-    let currentUserUUID = null;
+    (() => {
+        const dialog = document.getElementById("user-dialog");
+        const actions = document.getElementById("user-actions");
+        const feedback = document.getElementById("user-feedback");
+        const pageMessage = document.getElementById("user-message");
+        const set = (id, text) => document.getElementById(id).textContent = text;
+        let changed = false;
 
-    async function openUserModal(uuid) {
-        currentUserUUID = uuid;
-        const modal = document.getElementById('userModal');
-        const detailsDiv = document.getElementById('userDetails');
-        const loadingDiv = document.getElementById('userLoading');
+        const show = (element, text, ok) => {
+            element.textContent = text;
+            element.className = "alert " + (ok ? "alert-success" : "alert-danger");
+            element.hidden = false;
+        };
 
-        modal.classList.add('active');
-        detailsDiv.style.display = 'none';
-        loadingDiv.style.display = 'block';
-
-        try {
-            const response = await fetch(`?handler=ViewUser&uuid=${uuid}`);
+        const load = async uuid => {
+            const response = await fetch(`?handler=ViewUser&uuid=${encodeURIComponent(uuid)}`);
+            if (!response.ok) throw new Error(`The server answered ${response.status}.`);
             const user = await response.json();
 
-            document.getElementById('detailUsername').textContent = user.username;
-            document.getElementById('detailEmail').textContent = user.email;
-            document.getElementById('detailUUID').textContent = user.uuid;
-            document.getElementById('detailRole').textContent = user.roles;
+            set("user-title", user.username);
+            set("user-email", user.email);
+            set("user-role", user.roles);
+            set("user-status", user.isLocked ? "Locked" : user.isActive ? "Active" : "Inactive");
+            set("user-last", new Date(user.lastActive).toLocaleString());
+            set("user-uuid", user.uuid);
+            render(user);
+        };
 
-            const statusText = user.isLocked ? 'Locked' : (user.isActive ? 'Active' : 'Inactive');
-            document.getElementById('detailStatus').textContent = statusText;
-            document.getElementById('detailLastActive').textContent = new Date(user.lastActive).toLocaleString();
+        const run = async (user, handler, message) => {
+            if (message && !await window.confirmAction(message)) return;
 
-            populateActions(user);
+            const data = new FormData();
+            data.append("uuid", user.uuid);
+            data.append("__RequestVerificationToken", document.querySelector("input[name='__RequestVerificationToken']").value);
 
-            loadingDiv.style.display = 'none';
-            detailsDiv.style.display = 'block';
-        } catch (error) {
-            showToast('Failed to load user details', 'error');
-            closeUserModal();
-        }
-    }
+            try {
+                const response = await fetch(`?handler=${handler}`, { method: "POST", body: data });
+                if (!response.ok) throw new Error(`The server answered ${response.status}.`);
+                const result = await response.json();
 
-    function closeUserModal() {
-        document.getElementById('userModal').classList.remove('active');
-        currentUserUUID = null;
-    }
-
-    function populateActions(user) {
-        const actions = document.getElementById('modalActions');
-        actions.innerHTML = '';
-
-        if (user.roles !== 'Admin') {
-            const banBtn = document.createElement('button');
-            banBtn.className = 'btn-modal btn-ban';
-            banBtn.textContent = user.roles === 'Banned' ? 'Unban User' : 'Ban User';
-            banBtn.onclick = () => user.roles === 'Banned' ? unbanUser(user.uuid) : banUser(user.uuid);
-            actions.appendChild(banBtn);
-        }
-
-        if (user.isLocked) {
-            const unlockBtn = document.createElement('button');
-            unlockBtn.className = 'btn-modal btn-lock';
-            unlockBtn.textContent = 'Unlock Account';
-            unlockBtn.onclick = () => unlockUser(user.uuid);
-            actions.appendChild(unlockBtn);
-        } else {
-            const lockBtn = document.createElement('button');
-            lockBtn.className = 'btn-modal btn-lock';
-            lockBtn.textContent = 'Lock Account';
-            lockBtn.onclick = () => lockUser(user.uuid);
-            actions.appendChild(lockBtn);
-        }
-
-        const resetBtn = document.createElement('button');
-        resetBtn.className = 'btn-modal btn-reset';
-        resetBtn.textContent = 'Reset Password';
-        resetBtn.onclick = () => resetPassword(user.uuid);
-        actions.appendChild(resetBtn);
-
-        if (user.twoFactorEnabled) {
-            const disable2faBtn = document.createElement('button');
-            disable2faBtn.className = 'btn-modal btn-reset';
-            disable2faBtn.textContent = 'Disable 2FA';
-            disable2faBtn.onclick = () => disable2FA(user.uuid);
-            actions.appendChild(disable2faBtn);
-        }
-
-        if (user.roles !== 'Admin') {
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn-modal btn-delete';
-            deleteBtn.textContent = 'Delete User';
-            deleteBtn.onclick = () => {
-                if (confirm(`Are you sure you want to delete ${user.username}? This cannot be undone.`)) {
-                    deleteUser(user.uuid);
+                if (!result.success) {
+                    show(feedback, result.message || "The action failed.", false);
+                    return;
                 }
+
+                changed = true;
+
+                if (handler === "DeleteUser") {
+                    dialog.close();
+                    return;
+                }
+
+                await load(user.uuid);
+                show(feedback, result.message, true);
+            } catch (error) {
+                show(feedback, error.message, false);
+            }
+        };
+
+        const render = user => {
+            actions.replaceChildren();
+
+            const add = (label, handler, message, danger) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = danger ? "btn btn-danger" : "btn";
+                button.textContent = label;
+                button.addEventListener("click", () => run(user, handler, message));
+                actions.append(button);
             };
-            actions.appendChild(deleteBtn);
-        }
-    }
 
-    async function banUser(uuid) {
-        if (!confirm('Are you sure you want to ban this user?')) return;
-        await performAction('BanUser', uuid, 'User banned successfully');
-    }
+            const admin = user.roles === "Admin";
 
-    async function unbanUser(uuid) {
-        if (!confirm('Are you sure you want to unban this user?')) return;
-        await performAction('UnbanUser', uuid, 'User unbanned successfully');
-    }
+            if (!admin && user.roles === "Banned") add("Unban", "UnbanUser", `Unban ${user.username}?`);
+            if (!admin && user.roles !== "Banned") add("Ban", "BanUser", `Ban ${user.username}?`, true);
+            add(user.isLocked ? "Unlock" : "Lock for 1 hour", user.isLocked ? "UnlockUser" : "LockUser");
+            add("Reset password", "ResetPassword");
+            if (user.twoFactorEnabled) add("Turn off two-step sign in", "Disable2FA", `Turn off two-step sign in for ${user.username}?`, true);
+            if (!admin) add("Delete user", "DeleteUser", `Delete the user "${user.username}"? This cannot be undone.`, true);
+        };
 
-    async function lockUser(uuid) {
-        await performAction('LockUser', uuid, 'User account locked');
-    }
+        document.querySelectorAll("[data-user]").forEach(button => button.addEventListener("click", async () => {
+            feedback.hidden = true;
+            pageMessage.hidden = true;
 
-    async function unlockUser(uuid) {
-        await performAction('UnlockUser', uuid, 'User account unlocked');
-    }
-
-    async function resetPassword(uuid) {
-        await performAction('ResetPassword', uuid, 'Password reset initiated');
-    }
-
-    async function disable2FA(uuid) {
-        if (!confirm('Disable 2FA for this user?')) return;
-        await performAction('Disable2FA', uuid, '2FA disabled successfully');
-    }
-
-    async function deleteUser(uuid) {
-        await performAction('DeleteUser', uuid, 'User deleted successfully', true);
-    }
-
-    async function performAction(handler, uuid, successMessage, closeModal = false) {
-        try {
-            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-            if (!token) {
-                showToast('Security token not found, refresh the page', 'error');
-                return;
+            try {
+                await load(button.dataset.user);
+                dialog.showModal();
+            } catch (error) {
+                show(pageMessage, `Could not load the user. ${error.message}`, false);
             }
+        }));
 
-            const formData = new FormData();
-            formData.append('uuid', uuid);
-            formData.append('__RequestVerificationToken', token);
-
-            const response = await fetch(`?handler=${handler}`, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Invalid response content type');
-            }
-
-            const result = await response.json();
-
-            if (result.success) {
-                showToast(successMessage, 'success');
-                if (closeModal) {
-                    closeUserModal();
-                    location.reload();
-                } else {
-                    await openUserModal(uuid);
-                }
-            } else {
-                showToast(result.message || 'Action failed', 'error');
-            }
-        } catch (error) {
-            showToast('An error occurred: ' + error.message, 'error');
-            console.error(error);
-        }
-    }
-
-    function showToast(message, type = 'success') {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            toast.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
-
-    document.getElementById('userModal').addEventListener('click', (e) => {
-        if (e.target.id === 'userModal') closeUserModal();
-    });
+        dialog.addEventListener("close", () => {
+            if (changed) location.reload();
+        });
+    })();
 </script>
+}

@@ -43,6 +43,7 @@ namespace SharpPress.Pages
             if (!string.IsNullOrWhiteSpace(NewCategory.Name))
             {
                 await _taxonomyService.CreateCategoryAsync(NewCategory);
+                TempData["Flash"] = "Category added.";
             }
             return RedirectToPage();
         }
@@ -54,6 +55,7 @@ namespace SharpPress.Pages
                 return RedirectToPage("/Login");
 
             await _taxonomyService.DeleteCategoryAsync(id);
+            TempData["Flash"] = "Category deleted.";
             return RedirectToPage();
         }
     }

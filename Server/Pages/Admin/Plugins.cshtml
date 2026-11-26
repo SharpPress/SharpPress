@@ -4,468 +4,84 @@
 @{
     Layout = "_AdminLayout";
     ViewData["Title"] = "Plugins";
+    var plugins = pluginManager.GetLoadedPlugins();
 }
 
-<style>
-    .plugins-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.25rem;
-    }
-
-    .plugins-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1rem;
-        margin-top: 1.25rem;
-    }
-
-    .plugin-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        padding: 1.1rem;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-
-    .plugin-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 0.75rem;
-    }
-
-    .plugin-icon {
-        width: 38px;
-        height: 38px;
-        background: #2d333b;
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        color: #adbac7;
-        font-size: 1.05rem;
-    }
-
-    .plugin-name {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-white);
-        margin-bottom: 0.2rem;
-    }
-
-    .plugin-version {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-    }
-
-    .plugin-status {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        font-size: 0.8rem;
-    }
-
-        .plugin-status::before {
-            content: '';
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--success);
-        }
-
-    .plugin-card.disabled .plugin-status::before {
-        background: #6e7681;
-    }
-
-    .plugin-description {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        margin-bottom: 1.1rem;
-        flex-grow: 1;
-        line-height: 1.5;
-    }
-
-    .plugin-footer {
-        display: flex;
-        gap: 0.75rem;
-        border-top: 1px solid var(--border-subtle);
-        padding-top: 0.9rem;
-        margin-top: 0.9rem;
-    }
-
-    .plugin-actions {
-        display: flex;
-        gap: 0.75rem;
-        width: 100%;
-    }
-
-    .btn-plugin {
-        flex: 1;
-        padding: 0.45rem 1rem;
-        border: none;
-        border-radius: var(--radius-sm);
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        font-family: inherit;
-        text-align: center;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        min-height: 34px;
-        text-decoration: none;
-    }
-
-    .btn-enable {
-        background: var(--success);
-        color: #0d1117;
-        border: 1px solid transparent;
-    }
-
-        .btn-enable:hover {
-            background: #4ecb63;
-        }
-
-    .btn-disable {
-        background: transparent;
-        color: var(--text-muted);
-        border: 1px solid var(--border-subtle);
-    }
-
-        .btn-disable:hover {
-            background: var(--bg-hover);
-            color: var(--text-white);
-        }
-
-    .plugin-meta {
-        display: flex;
-        gap: 1rem;
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        margin-top: 0.9rem;
-        padding-top: 0.9rem;
-        border-top: 1px solid var(--border-subtle);
-    }
-
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    .plugin-card.disabled {
-        opacity: 0.75;
-    }
-
-        .plugin-card.disabled .plugin-name {
-            color: var(--text-muted);
-        }
-
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        color: var(--text-muted);
-    }
-
-    .empty-state-icon {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
-    }
-
-    .empty-state-title {
-        font-size: 1.1rem;
-        color: var(--text-white);
-        margin-bottom: 0.5rem;
-        font-weight: 600;
-    }
-
-    .empty-state-text {
-        font-size: 0.9rem;
-    }
-
-    .stats-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.85rem;
-        margin-bottom: 1.25rem;
-    }
-
-    .stat-mini {
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-md);
-        padding: 0.9rem 1rem;
-        text-align: center;
-    }
-
-    .stat-number {
-        font-size: 1.4rem;
-        font-weight: 600;
-        color: var(--text-white);
-    }
-
-    .stat-label {
-        font-size: 0.72rem;
-        color: var(--text-muted);
-        margin-top: 0.3rem;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        font-weight: 600;
-    }
-
-    .btn-upload-plugin,
-    .btn-install-store {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.45rem 1rem;
-        border-radius: var(--radius-sm);
-        font-size: 0.875rem;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
-        white-space: nowrap;
-        font-family: inherit;
-    }
-
-    .btn-upload-plugin {
-        background: var(--primary);
-        color: #ffffff;
-        border: 1px solid transparent;
-    }
-
-        .btn-upload-plugin:hover {
-            background: var(--primary-hover);
-        }
-
-    .btn-install-store {
-        background: #2d333b;
-        color: var(--text-main);
-        border: 1px solid var(--border-subtle);
-    }
-
-        .btn-install-store:hover {
-            background: var(--bg-hover);
-            color: var(--text-white);
-        }
-</style>
+<header class="page-header">
+    <h1>Plugins</h1>
+    <a href="/admin/plugins/store" class="btn">Browse the store</a>
+</header>
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    <div class="card" style="margin-bottom: 1rem; padding: 0.75rem 1rem; border-color: @(Model.StatusIsError ? "var(--danger, #e5534b)" : "var(--success, #3fb950)");">
-        @Model.StatusMessage
-    </div>
+    <div class="alert @(Model.StatusIsError ? "alert-danger" : "alert-success")" role="status">@Model.StatusMessage</div>
 }
 
-<div class="plugins-header">
-    <div>
-        <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">Plugin Management</h1>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Manage and control your installed plugins</p>
+<form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="card inline-form">
+    <div class="field">
+        <label for="plugin-file">Add a plugin from your computer (.dll)</label>
+        <input type="file" id="plugin-file" name="pluginFile" accept=".dll" required />
     </div>
-    <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <label class="btn-upload-plugin" for="pluginFileInput">
-            <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            Upload Plugin
-        </label>
-        @Html.AntiForgeryToken()
-        <input type="file" id="pluginFileInput" name="pluginFile" accept=".dll" hidden onchange="handlePluginUpload(this.files)" />
+    <button type="submit" class="btn btn-primary">Upload plugin</button>
+</form>
 
-        <a href="/admin/plugins/store" class="btn-install-store">
-            <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2;">
-                <circle cx="9" cy="21" r="1" />
-                <circle cx="20" cy="21" r="1" />
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-            </svg>
-            Browse Store
-        </a>
-    </div>
-</div>
-
-@if (pluginManager.GetLoadedPlugins().Count > 0)
+@if (plugins.Count == 0)
 {
-    <div class="stats-row">
-        <div class="stat-mini">
-            <div class="stat-number">@pluginManager.GetLoadedPlugins().Count</div>
-            <div class="stat-label">Total Plugins</div>
-        </div>
-        <div class="stat-mini">
-            <div class="stat-number">@pluginManager.GetEnabledPlugins().Count</div>
-            <div class="stat-label">Active</div>
-        </div>
-        <div class="stat-mini">
-            <div class="stat-number">@(pluginManager.GetLoadedPlugins().Count - pluginManager.GetEnabledPlugins().Count)</div>
-            <div class="stat-label">Disabled</div>
-        </div>
-    </div>
-
-    <div class="plugins-grid">
-        @foreach (var p in pluginManager.GetLoadedPlugins())
-        {
-            var isEnabled = pluginManager.IsPluginEnabled(p.Value.Name);
-            var statusClass = isEnabled ? "" : "disabled";
-            var firstLetter = p.Value.Name.FirstOrDefault().ToString().ToUpper();
-
-            <div class="plugin-card @statusClass">
-                <div class="plugin-header">
-                    <div style="flex: 1;">
-                        <div class="plugin-name">@p.Value.Name</div>
-                        <div class="plugin-version">v@(p.Value.Version)</div>
-                    </div>
-                    <div class="plugin-icon">@firstLetter</div>
-                </div>
-
-                <div class="plugin-description">
-                    @(string.IsNullOrEmpty(p.Value.Description) ? "No description provided" : p.Value.Description)
-                </div>
-
-                <div class="plugin-status">
-                    @if (!string.IsNullOrEmpty(p.Value.Error))
-                    {
-                        <span style="color: var(--danger, #e5534b);" title="@p.Value.Error">Failed: @p.Value.Error</span>
-                    }
-                    else if (isEnabled)
-                    {
-                        <span style="color: var(--success);">Active</span>
-                    }
-                    else
-                    {
-                        <span style="color: var(--text-muted);">Disabled</span>
-                    }
-                </div>
-
-                <div class="plugin-footer">
-                    <div class="plugin-actions">
-                        @if (isEnabled)
-                        {
-                            <form method="post" asp-page-handler="Disable" style="flex: 1;">
-                                <input name="name" value="@p.Value.Name" hidden />
-                                <button class="btn-plugin btn-disable" type="submit">
-                                    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <line x1="15" y1="9" x2="9" y2="15" />
-                                        <line x1="9" y1="9" x2="15" y2="15" />
-                                    </svg>
-                                    Disable
-                                </button>
-                            </form>
-                        }
-                        else
-                        {
-                            <form method="post" asp-page-handler="Enable" style="flex: 1;">
-                                <input name="name" value="@p.Value.Name" hidden />
-                                <button class="btn-plugin btn-enable" type="submit">
-                                    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2;">
-                                        <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                    Enable
-                                </button>
-                            </form>
-                        }
-                    </div>
-                </div>
-
-                <form method="post" asp-page-handler="Remove" onsubmit="return confirm('Remove this plugin and delete its files?');" style="margin-top: 0.5rem;">
-                    <input name="name" value="@p.Value.Name" hidden />
-                    <button class="btn-plugin btn-disable" type="submit">Remove</button>
-                </form>
-
-                <div class="plugin-meta">
-                    <div class="meta-item">
-                        <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5;">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                        </svg>
-                        Author
-                    </div>
-                    <div class="meta-item" title="@p.Value.Author">
-                        @(p.Value.Author ?? "Unknown")
-                    </div>
-                </div>
-            </div>
-        }
+    <div class="empty">
+        <p>No plugins installed. Upload one above or pick one from the store.</p>
     </div>
 }
 else
 {
-    <div class="card">
-        <div class="empty-state">
-            <div class="empty-state-icon">📦</div>
-            <div class="empty-state-title">No Plugins Installed</div>
-            <div class="empty-state-text">Place your plugin DLL files in the plugins directory or install one from store to get started.</div>
-        </div>
+    <div class="table-container">
+        <table class="table-stack">
+            <thead>
+                <tr>
+                    <th>Plugin</th>
+                    <th>Version</th>
+                    <th>Author</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var plugin in plugins)
+                {
+                    var info = plugin.Value;
+                    var enabled = pluginManager.IsPluginEnabled(info.Name);
+                    var failed = !string.IsNullOrEmpty(info.Error);
+
+                    <tr>
+                        <td>
+                            <div>
+                                <p class="cell-title">@info.Name</p>
+                                <p class="field-help">@(string.IsNullOrEmpty(info.Description) ? "No description" : info.Description)</p>
+                                @if (failed)
+                                {
+                                    <p class="error-text">@info.Error</p>
+                                }
+                            </div>
+                        </td>
+                        <td data-label="Version" class="cell-muted">@info.Version</td>
+                        <td data-label="Author" class="cell-muted">@(info.Author ?? "Unknown")</td>
+                        <td data-label="Status">
+                            <span class="badge @(failed ? "badge-danger" : enabled ? "badge-success" : "")">@(failed ? "Failed" : enabled ? "On" : "Off")</span>
+                        </td>
+                        <td>
+                            <div class="actions">
+                                <form method="post" asp-page-handler="@(enabled ? "Disable" : "Enable")">
+                                    <input type="hidden" name="name" value="@info.Name" />
+                                    <button type="submit" class="btn">@(enabled ? "Turn off" : "Turn on")</button>
+                                </form>
+                                <form method="post" asp-page-handler="Remove" data-confirm="Remove the plugin &quot;@info.Name&quot; and delete its files?">
+                                    <input type="hidden" name="name" value="@info.Name" />
+                                    <button type="submit" class="btn btn-danger">Remove</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 }
-
-@Html.AntiForgeryToken()
-<script>
-    function handlePluginUpload(files) {
-        if (!files || files.length === 0) return;
-
-        const file = files[0];
-
-        if (!file.name.toLowerCase().endsWith('.dll')) {
-            alert('Please select a valid plugin DLL file (.dll only)');
-            return;
-        }
-
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        if (!token) {
-            alert('Security token not found. Please refresh the page.');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('__RequestVerificationToken', token);
-        formData.append('pluginFile', file);
-
-        const uploadLabel = document.querySelector('.btn-upload-plugin');
-        const originalText = uploadLabel.innerHTML;
-        uploadLabel.innerHTML = '<svg viewBox="0 0 24 24" style="width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="32" /></svg> Uploading...';
-        uploadLabel.style.pointerEvents = 'none';
-        uploadLabel.style.opacity = '0.7';
-
-        fetch('?handler=Upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) {
-                alert('Plugin uploaded successfully!');
-                location.reload();
-            } else {
-                return response.text().then(text => {
-                    throw new Error(text || 'Upload failed');
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Upload error:', error);
-            alert('Failed to upload plugin: ' + error.message);
-
-            uploadLabel.innerHTML = originalText;
-            uploadLabel.style.pointerEvents = '';
-            uploadLabel.style.opacity = '';
-
-            document.getElementById('pluginFileInput').value = '';
-        });
-    }
-
-    const style = document.createElement('style');
-    style.textContent = `
-    @@keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }`;
-    document.head.appendChild(style);
-</script>

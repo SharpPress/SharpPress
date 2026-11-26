@@ -4,6 +4,17 @@ All notable changes to SharpPress will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-11-26
+
+### Changed
+- New interface for the admin panel, sign in, register, setup, post and status pages: one shared stylesheet, light and dark themes, and layouts that work on phones.
+
+### Fixed
+- Post save errors and plugin store install errors are now shown.
+- Deleting a category works.
+- Category names and descriptions are no longer rendered as raw HTML.
+- Setup accepts an empty site description.
+
 ## [1.4.2] - 2026-11-26
 
 ### Changed

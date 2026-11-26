@@ -42,14 +42,25 @@ namespace SharpPress.Pages
             if (files == null || files.Count == 0)
                 return RedirectToPage();
 
+            var uploaded = 0;
             foreach (var file in files)
             {
-                if (file.Length > 0)
+                if (file.Length == 0) continue;
+
+                try
                 {
                     using var stream = file.OpenReadStream();
                     await _mediaService.UploadAsync(stream, file.FileName, file.ContentType, User.Identity.Name);
+                    uploaded++;
+                }
+                catch (EventCancelledException ex)
+                {
+                    TempData["FlashError"] = $"{file.FileName} was not uploaded: {ex.Message}";
                 }
             }
+
+            if (uploaded > 0)
+                TempData["Flash"] = uploaded == 1 ? "File uploaded." : $"{uploaded} files uploaded.";
 
             return RedirectToPage();
         }
@@ -61,6 +72,7 @@ namespace SharpPress.Pages
                 return RedirectToPage("/Login");
 
             await _mediaService.DeleteAsync(id);
+            TempData["Flash"] = "File deleted.";
             return RedirectToPage();
         }
 
