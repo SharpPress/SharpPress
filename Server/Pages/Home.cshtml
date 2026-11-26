@@ -1,0 +1,47 @@
+@page "/Home"
+@model SharpPress.Pages.HomeModel
+@inject SharpPress.Services.IFilterPipeline Filters
+@{
+    Layout = "_SiteLayout";
+    ViewData["Title"] = Model.SiteName;
+}
+
+<div class="article">
+    <header>
+        <h1>@Model.SiteName</h1>
+        @if (!string.IsNullOrEmpty(Model.SiteDescription))
+        {
+            <p class="field-help">@Model.SiteDescription</p>
+        }
+    </header>
+
+    @if (!Model.Posts.Any())
+    {
+        <div class="empty">
+            <p>Nothing has been published yet.</p>
+        </div>
+    }
+    else
+    {
+        <ul class="post-list">
+            @foreach (var post in Model.Posts)
+            {
+                <li>
+                    <h2><a href="@HomeRoute.LinkFor(post)">@Filters.Apply(SharpPress.Services.FilterKeys.PostTitle, post.Title)</a></h2>
+                    @if (post.PublishedAt.HasValue)
+                    {
+                        <p class="field-help"><time datetime="@post.PublishedAt.Value.ToString("yyyy-MM-dd")">@post.PublishedAt.Value.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture)</time></p>
+                    }
+                    @if (!string.IsNullOrEmpty(post.Excerpt))
+                    {
+                        <p>@Filters.Apply(SharpPress.Services.FilterKeys.PostExcerpt, post.Excerpt)</p>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
+    <footer class="article-footer">
+        <a href="/login">Sign in</a>
+    </footer>
+</div>

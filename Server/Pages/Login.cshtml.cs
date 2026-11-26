@@ -45,7 +45,7 @@ namespace SharpPress.Pages
             {
                 if (await _authService.IsAccountLocked(Input.Email))
                 {
-                    ErrorMessage = "حساب شما به دلیل تلاش‌های ناموفق زیاد موقتاً قفل شده است.";
+                    ErrorMessage = "Your account is temporarily locked after too many failed attempts.";
                     return Page();
                 }
 
@@ -53,13 +53,13 @@ namespace SharpPress.Pages
                 if (user == null || !_authService.VerifyPassword(Input.Password, user.Password))
                 {
                     _authService.RecordFailedLoginAttempt(Input.Email);
-                    ErrorMessage = "ایمیل یا رمز عبور اشتباه است.";
+                    ErrorMessage = "Wrong email or password.";
                     return Page();
                 }
 
                 if (user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow)
                 {
-                    ErrorMessage = "حساب شما توسط مدیر قفل شده است.";
+                    ErrorMessage = "Your account has been locked by an administrator.";
                     return Page();
                 }
 
@@ -75,7 +75,7 @@ namespace SharpPress.Pages
                     {
                         _authService.RecordFailedLoginAttempt(Input.Email);
                         ShowTwoFactor = true;
-                        ErrorMessage = "کد دو مرحله‌ای نامعتبر است.";
+                        ErrorMessage = "The two-step sign in code is not valid.";
                         return Page();
                     }
                 }
@@ -98,7 +98,7 @@ namespace SharpPress.Pages
             }
             catch (Exception ex)
             {
-                ErrorMessage = "خطای سرور";
+                ErrorMessage = "Something went wrong on the server. Please try again.";
                 _logger.LogError($"OnPostLogin Error: {ex.Message}");
                 return Page();
             }
@@ -106,11 +106,11 @@ namespace SharpPress.Pages
 
         public class InputModel
         {
-            [Required(ErrorMessage = "ایمیل الزامی است")]
-            [EmailAddress(ErrorMessage = "ایمیل معتبر نیست")]
+            [Required(ErrorMessage = "Email is required")]
+            [EmailAddress(ErrorMessage = "Enter a valid email address")]
             public string Email { get; set; } = "";
 
-            [Required(ErrorMessage = "رمز عبور الزامی است")]
+            [Required(ErrorMessage = "Password is required")]
             [DataType(DataType.Password)]
             public string Password { get; set; } = "";
 

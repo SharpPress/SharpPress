@@ -1178,7 +1178,6 @@ namespace SharpPress.Services.Database
 
         internal static string GetTableName(Type type) => type.Name;
 
-        /// <summary>هشدار: آپدیت اتمیکِ در نظرگرفته‌شده برای یک ردیف، چند ردیف را تغییر داده است.</summary>
         internal void ReportAtomicMassUpdate(string tableName, int affected)
             => _logger.LogWarning(
                 "FeatherAtomicUpdate on '{Table}' affected {Affected} rows — the OnlyIf guard does not pin a single row (check for a missing Id predicate).",
@@ -2331,7 +2330,6 @@ namespace SharpPress.Services.Database
             };
         }
 
-        /// <summary>LIMIT را سمت دیتابیس اعمال می‌کند و لیست برمی‌گرداند.</summary>
         public static async Task<List<T>> TakeAsync<T>(this IQueryable<T> query, int count, CancellationToken cancellationToken = default)
         {
             return query switch
@@ -2646,8 +2644,6 @@ namespace SharpPress.Services.Database
 
             _executed = true;
             var affected = await _db.ExecuteNonQueryWithCount(sql, cancellationToken, _parameters.ToArray()).ConfigureAwait(false);
-            // کاغذ اعلان: آپدیت اتمیکِ «تکی» که بیش از یک ردیف را تغییر دهد یعنی گارد OnlyIf
-            // ردیف را پین نکرده است (همان باگِ شارژ دسته‌جمعیِ صفحه‌ی تمدید). هشدار تا در لاگ دیده شود.
             if (affected > 1)
                 _db.ReportAtomicMassUpdate(tableName, affected);
             return affected > 0;

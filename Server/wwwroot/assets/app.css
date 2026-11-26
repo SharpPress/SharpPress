@@ -591,7 +591,7 @@ legend {
 
 .media-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: var(--space-3);
     margin-top: var(--space-4);
 }
@@ -725,6 +725,7 @@ h2.card-title {
 }
 
 .site-bar .brand {
+    padding: 0;
     text-decoration: none;
 }
 
@@ -808,6 +809,14 @@ h2.card-title {
     margin-top: var(--space-6);
     padding-top: var(--space-4);
     border-top: 1px solid var(--border);
+}
+
+.post-list {
+    list-style: none;
+}
+
+.post-list li {
+    margin-bottom: var(--space-5);
 }
 
 .status-page {

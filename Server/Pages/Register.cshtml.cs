@@ -60,26 +60,26 @@ namespace SharpPress.Pages
                 var user = await database.GetByColumn<User>("Email", Input.Email);
                 if (user != null)
                 {
-                    ErrorMessage = "کاربر با این ایمیل وجود دارد.";
+                    ErrorMessage = "An account with this email already exists.";
                     return Page();
                 }
 
                 var userNamed = await database.GetByColumn<User>("Username", Input.Username);
                 if (userNamed != null)
                 {
-                    ErrorMessage = "کاربر با این یوزرنیم وجود دارد.";
+                    ErrorMessage = "That username is already taken.";
                     return Page();
                 }
 
                 if (Input.Username.Contains(" "))
                 {
-                    ErrorMessage = "یوزرنیم شما دارای فضای خالی است.";
+                    ErrorMessage = "Usernames cannot contain spaces.";
                     return Page();
                 }
 
                 if (Input.Password != Input.ConfirmPassword)
                 {
-                    ErrorMessage = "رمز ها با هم متفاوت هستند.";
+                    ErrorMessage = "The passwords do not match.";
                     return Page();
                 }
 
@@ -109,7 +109,7 @@ namespace SharpPress.Pages
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError(string.Empty, "ایمیل یا یوزرنیم از قبل وجود دارد!");
+                ModelState.AddModelError(string.Empty, "That email or username already exists.");
                 logger.LogError($"OnPostRegister Error: {ex.Message}");
                 return Page();
             }
@@ -130,10 +130,10 @@ namespace SharpPress.Pages
 
             [Required]
             [DataType(DataType.Password)]
-            [Compare("Password", ErrorMessage = "رمز عبور و تکرار آن مطابقت ندارند.")]
+            [Compare("Password", ErrorMessage = "The passwords do not match.")]
             public string ConfirmPassword { get; set; }
 
-            [Range(typeof(bool), "true", "true", ErrorMessage = "برای ثبت‌نام باید قوانین و مقررات را بپذیرید.")]
+            [Range(typeof(bool), "true", "true", ErrorMessage = "Accept the terms and conditions to create an account.")]
             public bool AcceptTerms { get; set; }
         }
     }

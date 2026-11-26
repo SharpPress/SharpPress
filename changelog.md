@@ -4,6 +4,14 @@ All notable changes to SharpPress will be documented in this file.
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-11-26
+
+### Added
+- A simple home page at `/` listing published posts. A `public_html/index.php` or `index.html` still takes its place.
+
+### Changed
+- Sign in and register messages are in English.
+
 ## [1.5.2] - 2026-11-26
 
 ### Changed

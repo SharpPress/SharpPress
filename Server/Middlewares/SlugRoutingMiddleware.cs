@@ -1,6 +1,8 @@
 using SharpPress.Services;
 using SharpPress.Models;
 using SharpPress.Services.General;
+using SharpPress.Helpers;
+using SharpPress.Plugins;
 
 namespace SharpPress.Middlewares
 {
@@ -13,9 +15,17 @@ namespace SharpPress.Middlewares
             _next = next;
         }
 
-        public async Task InvokeAsync(HttpContext context, IPostService postService, ITaxonomyService taxonomyService)
+        public async Task InvokeAsync(HttpContext context, IPostService postService, ITaxonomyService taxonomyService, PluginEndpointDataSource pluginEndpoints)
         {
             var path = context.Request.Path.Value;
+
+            if (HomeRoute.ShouldShowHomePage(path, Path.Combine(AppContext.BaseDirectory, "public_html"))
+                && !pluginEndpoints.Endpoints.OfType<RouteEndpoint>().Any(e => e.RoutePattern.RawText == "/"))
+            {
+                context.Request.Path = HomeRoute.PagePath;
+                await _next(context);
+                return;
+            }
 
             if (!string.IsNullOrEmpty(path) && path != "/")
             {
