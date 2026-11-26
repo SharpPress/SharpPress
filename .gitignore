@@ -14,3 +14,9 @@ obj/
 *.deps.json
 *.runtimeconfig.json
 *.zip
+
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+CONSTRAINTS.md
+.claude/

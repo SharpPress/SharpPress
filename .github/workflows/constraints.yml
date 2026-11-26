@@ -1,0 +1,107 @@
+name: Constraints
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+
+      - name: Install gitleaks
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP/gitleaks" gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+
+      - name: Run checks
+        shell: pwsh
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          $base = $env:BASE_SHA
+          git rev-parse --verify --quiet "$base^{commit}" | Out-Null
+          if ($LASTEXITCODE -ne 0) { $base = 'HEAD~1' }
+          ./scripts/check.ps1 -Stage full -Base $base -RequireSecretScan
+
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: sharppress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+
+      - name: Build and start
+        working-directory: Server
+        run: |
+          dotnet build SharpPress.csproj -c Release --nologo
+          cat > config.json <<'EOF'
+          {
+            "SetupStep": 2,
+            "MySQL_Config": {
+              "host": "127.0.0.1",
+              "port": 3306,
+              "database_name": "sharppress",
+              "database_username": "root",
+              "database_password": "root"
+            }
+          }
+          EOF
+          HTTP_PORT=8080 nohup dotnet bin/Release/net8.0/SharpPress.dll > server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8080/health > /dev/null && exit 0
+            sleep 1
+          done
+          cat server.log
+          exit 1
+
+      - name: Lighthouse
+        run: npx --yes lighthouse@12.2.1 http://127.0.0.1:8080/setup --output=json --output-path=lighthouse.json --quiet --chrome-flags="--headless=new --no-sandbox"
+
+      - name: axe
+        run: npx --yes @axe-core/cli@4.10.1 http://127.0.0.1:8080/setup --tags wcag2a,wcag2aa,wcag21aa --chromedriver-path "$CHROMEWEBDRIVER/chromedriver" --save axe.json
+
+      - name: Report values
+        run: |
+          jq -r '"LCP ms: \(.audits["largest-contentful-paint"].numericValue)\nCLS: \(.audits["cumulative-layout-shift"].numericValue)\nPerformance score: \(.categories.performance.score)"' lighthouse.json | tee -a "$GITHUB_STEP_SUMMARY"
+          jq -r '"axe critical or serious: \([.[].violations[] | select(.impact == "critical" or .impact == "serious")] | length)"' axe.json | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-reports
+          path: |
+            lighthouse.json
+            axe.json
+          if-no-files-found: ignore
