@@ -4,6 +4,8 @@ All notable changes to SharpPress will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-11-26
+
 ### Changed
 - Plugin contracts moved to the new `SharpPress.Abstractions` assembly. Plugins must reference it instead of the server assembly and rebuild against plugin API version 1.
 - Plugin loading rewritten: plugins are loaded from memory (DLLs are never locked), replaced atomically with automatic rollback, unloaded completely with everything they registered, and watched on disk for hot add, replace and delete.
@@ -18,6 +20,7 @@ All notable changes to SharpPress will be documented in this file.
 - `Samples/SamplePlugin` buildable sample plugin with a live "Sample feature check" admin page covering every plugin feature.
 - Plugins that ship MVC controllers or Razor Pages now unload completely: the host clears the framework caches that pin plugin types (see `docs/PluginUnloading.md`).
 - Remove action for plugins in the admin panel and visible load errors.
+- Unit and architecture tests, quality checks in CI, and automatic GitHub releases when the app version changes.
 
 ### Fixed
 - Plugin upload, enable, disable and store install now require an admin.

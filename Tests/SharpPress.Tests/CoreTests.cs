@@ -24,6 +24,17 @@ namespace SharpPress.Tests
         }
 
         [Fact]
+        public async Task AppVersionComparesAgainstItself()
+        {
+            var current = AppVersion.Version;
+            var parsed = await AppVersion.ToVersion($"v{current.Major}.{current.Minor}.{current.Patch}");
+            var next = await AppVersion.ToVersion($"{current.Major}.{current.Minor}.{current.Patch + 1}");
+
+            Assert.False(await AppVersion.IsNewer(parsed!));
+            Assert.True(await AppVersion.IsNewer(next!));
+        }
+
+        [Fact]
         public void IsInsideRejectsSiblingPrefix()
         {
             var root = Path.Combine(Path.GetTempPath(), "root");

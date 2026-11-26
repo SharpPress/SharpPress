@@ -20,7 +20,7 @@ namespace SharpPress
 {
     public static class AppVersion
     {
-        public static Version Version { get; private set; } = new Version() { Major = 1, Minor = 2, Patch = 1 };
+        public static Version Version { get; private set; } = new Version() { Major = 1, Minor = 4, Patch = 2 };
 
         public static Task<Version?> ToVersion(string? version)
         {

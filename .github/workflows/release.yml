@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read app version
+        id: version
+        run: |
+          pattern='Major = ([0-9]+), Minor = ([0-9]+), Patch = ([0-9]+)'
+          line=$(grep -E "Version Version .*$pattern" Server/Program.cs || true)
+          if [[ ! "$line" =~ $pattern ]]; then
+            echo "could not read the version from Server/Program.cs"
+            exit 1
+          fi
+          tag="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > /dev/null 2> error.txt; then
+            echo "release $tag already exists"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          elif grep -q "HTTP 404" error.txt; then
+            echo "release $tag will be created"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            cat error.txt
+            exit 1
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.version.outputs.exists == 'false'
+        with:
+          dotnet-version: 8.x
+
+      - name: Test
+        if: steps.version.outputs.exists == 'false'
+        run: dotnet test Tests/SharpPress.Tests/SharpPress.Tests.csproj -c Release --nologo
+
+      - name: Package
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          dotnet publish Server/SharpPress.csproj -c Release --nologo -o "$RUNNER_TEMP/publish"
+          (cd "$RUNNER_TEMP/publish" && zip -qr "$GITHUB_WORKSPACE/SharpPress.zip" .)
+
+      - name: Create release
+        if: steps.version.outputs.exists == 'false'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh release create "$TAG" SharpPress.zip --title "$TAG" --target "$GITHUB_SHA" --generate-notes --latest

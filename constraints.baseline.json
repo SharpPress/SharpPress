@@ -1,7 +1,7 @@
 {
   "warnUntil": "2026-12-10",
   "buildWarnings": 91,
-  "projectLineCoverage": 1.67,
+  "projectLineCoverage": 1.86,
   "coverageTolerance": 0.5,
   "changedLineCoverage": 80,
   "knownAdvisories": [
